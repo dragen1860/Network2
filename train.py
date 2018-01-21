@@ -51,6 +51,7 @@ if __name__ == '__main__':
 
 			net.train()
 			loss = net(support_x, support_y, query_x, query_y)
+			loss = loss.sum() # Multi-GPU support
 
 			optimizer.zero_grad()
 			loss.backward()
