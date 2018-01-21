@@ -101,7 +101,7 @@ class Compare(nn.Module):
 		label = torch.eq(support_yf, query_yf).float()
 
 		if train:
-			loss = torch.norm(label - score, 2) / batchsz
+			loss = torch.pow(label - score, 2).sum() / batchsz
 			return loss
 		else:
 			# [b, querysz, setsz]
