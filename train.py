@@ -30,7 +30,7 @@ if __name__ == '__main__':
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=1e-3, weight_decay=5e-4)
+	optimizer = optim.Adam(net.parameters(), lr=1e-3)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
@@ -69,9 +69,9 @@ if __name__ == '__main__':
 					query_y = Variable(batch_test[3]).cuda()
 
 					net.eval()
-					pred, correct, total = net(support_x, support_y, query_x, query_y, False)
-					total_correct += correct
-					total_num += total
+					pred, correct = net(support_x, support_y, query_x, query_y, False)
+					total_correct += correct.data[0]
+					total_num += query_y.size(0) * query_y.size(1)
 
 					if not display_onebatch:
 						display_onebatch = True  # only display once

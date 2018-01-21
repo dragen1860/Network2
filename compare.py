@@ -119,6 +119,5 @@ class Compare(nn.Module):
 			# pred: [b, querysz]
 			pred = Variable(torch.from_numpy(np.array(pred).reshape((batchsz, querysz)))).cuda()
 
-			correct = torch.eq(pred, query_y).sum().data[0]
-			total = batchsz * querysz
-			return pred, correct, total
+			correct = torch.eq(pred, query_y).sum()
+			return pred, correct
