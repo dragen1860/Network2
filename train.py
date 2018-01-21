@@ -6,8 +6,6 @@ from MiniImagenet import MiniImagenet
 from compare import Compare
 from utils import make_imgs
 
-
-
 if __name__ == '__main__':
 	from MiniImagenet import MiniImagenet
 	from torch.utils.data import DataLoader
@@ -15,33 +13,35 @@ if __name__ == '__main__':
 	from tensorboardX import SummaryWriter
 	from datetime import datetime
 
-	rn = Compare().cuda()
-	print(rn)
 	n_way = 5
 	k_shot = 1
 	k_query = 1
-	batchsz = 15
-	mdl_file = 'ckpt/compare_%d%d.mdl'%(rn.c, rn.d)
+	batchsz = 8
+	# Multi-GPU support
+	net = torch.nn.DataParallel(Compare(n_way, k_shot), device_ids=[0]).cuda()
+	print(net)
+	mdl_file = 'ckpt/compare_%d%d.mdl' % (net.module.c, net.module.d)
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
-		rn.load_state_dict(torch.load(mdl_file))
+		net.load_state_dict(torch.load(mdl_file))
 
-	model_parameters = filter(lambda p: p.requires_grad, rn.parameters())
+	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('total params:', params)
 
-	optimizer = optim.Adam(rn.parameters(), lr=1e-5, weight_decay=5e-4)
+	optimizer = optim.Adam(net.parameters(), lr=1e-3, weight_decay=5e-4)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
 	for epoch in range(1000):
 
-		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query, batchsz=1000, resize=224)
-		db = DataLoader(mini,  batchsz, shuffle=True, num_workers=6)
-		mini_val = MiniImagenet('../mini-imagenet/', mode='val', n_way=n_way, k_shot=k_shot, k_query=k_query, batchsz=100, resize=224)
+		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
+		                    batchsz=1000, resize=224)
+		db = DataLoader(mini, batchsz, shuffle=True, num_workers=6)
+		mini_val = MiniImagenet('../mini-imagenet/', mode='val', n_way=n_way, k_shot=k_shot, k_query=k_query,
+		                        batchsz=100, resize=224)
 		db_val = DataLoader(mini_val, batchsz, shuffle=True)
-
 
 		for step, batch in enumerate(db):
 			support_x = Variable(batch[0]).cuda()
@@ -49,15 +49,15 @@ if __name__ == '__main__':
 			query_x = Variable(batch[2]).cuda()
 			query_y = Variable(batch[3]).cuda()
 
-			rn.train()
-			loss = rn(support_x, support_y, query_x, query_y)
+			net.train()
+			loss = net(support_x, support_y, query_x, query_y)
 
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
 
 			total_val_loss = 0
-			if step % 50 == 0 :
+			if step % 50 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False
@@ -67,28 +67,28 @@ if __name__ == '__main__':
 					query_x = Variable(batch_test[2]).cuda()
 					query_y = Variable(batch_test[3]).cuda()
 
-					rn.eval()
-					pred, correct, total = rn(support_x, support_y, query_x, query_y, False)
+					net.eval()
+					pred, correct, total = net(support_x, support_y, query_x, query_y, False)
 					total_correct += correct
 					total_num += total
 
 					if not display_onebatch:
-						display_onebatch = True # only display once
+						display_onebatch = True  # only display once
 						all_img, max_width = make_imgs(n_way, k_shot, k_query, support_x.size(0),
-						                    support_x, support_y, query_x, query_y, pred)
+						                               support_x, support_y, query_x, query_y, pred)
 						all_img = make_grid(all_img, nrow=max_width)
 						tb.add_image('result batch', all_img)
 
 				accuracy = total_correct / total_num
 				if accuracy > best_accuracy:
 					best_accuracy = accuracy
-					torch.save(rn.state_dict(), mdl_file)
-					print('saved to checkpoint:',mdl_file)
+					torch.save(net.state_dict(), mdl_file)
+					print('saved to checkpoint:', mdl_file)
 
 				tb.add_scalar('accuracy', accuracy)
 				print('accuracy:', accuracy, 'best accuracy:', best_accuracy, 'val loss:', total_val_loss)
 
-
-			if step% 15 == 0 and step != 0:
+			if step % 15 == 0 and step != 0:
 				tb.add_scalar('loss', loss.cpu().data[0])
-				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f'%(n_way, k_shot, batchsz, epoch, step, loss.cpu().data[0]))
+				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
+				n_way, k_shot, batchsz, epoch, step, loss.cpu().data[0]))

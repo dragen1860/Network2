@@ -131,11 +131,10 @@ class ResNet(nn.Module):
 		x = self.layer2(x)
 		x = self.layer3(x)
 
-
 		return x
 
 
-def repnet_deep(pretrained = False, **kwargs):
+def repnet_deep(pretrained=False, **kwargs):
 	"""Constructs a ResNet-Mini-Imagenet model.
 
 	Args:

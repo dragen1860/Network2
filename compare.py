@@ -8,7 +8,6 @@ from repnet import repnet_deep, Bottleneck
 
 
 class Compare(nn.Module):
-
 	def __init__(self, n_way, k_shot):
 		super(Compare, self).__init__()
 
@@ -16,21 +15,22 @@ class Compare(nn.Module):
 		self.k_shot = k_shot
 
 		self.repnet = repnet_deep(False)
-		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224)))[0].size()
+		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224))).size()
 		self.c = repnet_sz[1]
 		self.d = repnet_sz[2]
+		self.inplanes = 2 * self.c
 		assert repnet_sz[2] == repnet_sz[3]
 		print('repnet sz:', repnet_sz)
 
 		# after relational module
-		self.layer4 = self._make_layer(Bottleneck, 128, 4)
-		self.layer5 = self._make_layer(Bottleneck, 64, 3)
+		self.layer4 = self._make_layer(Bottleneck, 128, 4, stride=2)
+		self.layer5 = self._make_layer(Bottleneck, 64, 3, stride=2)
 		self.fc = nn.Sequential(
-			nn.AvgPool2d(2),
-			nn.Linear(256, 64),
-			nn.Linear(64, 1)
+			nn.Linear(256 , 64),
+			nn.ReLU(inplace=True),
+			nn.Linear(64, 1),
+			nn.Sigmoid()
 		)
-
 
 	def _make_layer(self, block, planes, blocks, stride=1):
 		"""
@@ -57,7 +57,8 @@ class Compare(nn.Module):
 
 		return nn.Sequential(*layers)
 
-	def forward(self, support_x, support_y, query_x, query_y, train = True):
+
+	def forward(self, support_x, support_y, query_x, query_y, train=True):
 		"""
 
 		:param support_x: [b, setsz, c_, h, w]
@@ -81,10 +82,12 @@ class Compare(nn.Module):
 		# [b, querysz, c, d, d] => [b, querysz, 1, c, d, d] => [b, querysz, setsz, c, d, d]
 		query_xf = query_xf.unsqueeze(2).expand(-1, -1, setsz, -1, -1, -1)
 		# cat: [b, querysz, setsz, c, d, d] => [b, querysz, setsz, 2c, d, d]
-		comb = torch.cat([support_xf, query_xf], dim = 3)
+		comb = torch.cat([support_xf, query_xf], dim=3)
 
 		comb = self.layer5(self.layer4(comb.view(batchsz * querysz * setsz, 2 * c, d, d)))
-		print('layer5 sz:', comb.size())
+		# print('layer5 sz:', comb.size()) # (5*5*5, 256, 4, 4)
+		comb = F.avg_pool2d(comb, 3) # (5*5*5, 256, 1, 1)
+		# print('avg sz:', comb.size())
 		# push to Linear layer
 		# [b * querysz * setsz, -1] => [b * querysz * setsz, 1] => [b, querysz, setsz, 1] => [b, querysz, setsz]
 		score = self.fc(comb.view(batchsz * querysz * setsz, -1)).view(batchsz, querysz, setsz, 1).squeeze(3)
@@ -94,10 +97,8 @@ class Compare(nn.Module):
 		support_yf = support_y.unsqueeze(1).expand(batchsz, querysz, setsz)
 		# [b, querysz] => [b, querysz, 1] => [b, querysz, setsz]
 		query_yf = query_y.unsqueeze(2).expand(batchsz, querysz, setsz)
-		# eq: [b, querysz, setsz] => [b, querysz, setsz]
-		label = torch.eq(support_yf, query_yf)
-
-
+		# eq: [b, querysz, setsz] => [b, querysz, setsz] and convert byte tensor to float tensor
+		label = torch.eq(support_yf, query_yf).float()
 
 		if train:
 			loss = torch.norm(label - score, 2) / batchsz
@@ -121,10 +122,3 @@ class Compare(nn.Module):
 			correct = torch.eq(pred, query_y).sum().data[0]
 			total = batchsz * querysz
 			return pred, correct, total
-
-
-
-
-
-
-
