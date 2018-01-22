@@ -14,12 +14,13 @@ if __name__ == '__main__':
 	from datetime import datetime
 
 	n_way = 5
-	k_shot = 1
-	k_query = 1
-	batchsz = 10
+	k_shot = 1  
+	k_query = 1 # query num per class
+	batchsz = 22
 	# Multi-GPU support
-	net = torch.nn.DataParallel(Compare(n_way, k_shot), device_ids=[0]).cuda()
-	print(net)
+	print('To run on single machine, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
+	net = torch.nn.DataParallel(Compare(n_way, k_shot), device_ids=[0,1]).cuda()
+	# print(net)
 	mdl_file = 'ckpt/compare_%d%d.mdl' % (net.module.c, net.module.d)
 
 	if os.path.exists(mdl_file):
@@ -38,9 +39,9 @@ if __name__ == '__main__':
 
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
 		                    batchsz=10000, resize=224)
-		db = DataLoader(mini, batchsz, shuffle=True, num_workers=6)
+		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='val', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                        batchsz=100, resize=224)
+		                        batchsz=200, resize=224)
 		db_val = DataLoader(mini_val, batchsz, shuffle=True)
 
 		for step, batch in enumerate(db):
