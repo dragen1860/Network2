@@ -8,6 +8,9 @@ from repnet import repnet_deep, Bottleneck
 
 
 class Compare(nn.Module):
+	"""
+	repnet => feature concat => layer4 & layer5 & avg pooling => fc => sigmoid
+	"""
 	def __init__(self, n_way, k_shot):
 		super(Compare, self).__init__()
 
@@ -15,9 +18,11 @@ class Compare(nn.Module):
 		self.k_shot = k_shot
 
 		self.repnet = repnet_deep(False)
+		# we need to know the feature dim, so here is a forwarding.
 		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224))).size()
 		self.c = repnet_sz[1]
 		self.d = repnet_sz[2]
+		# this is the input channels of layer4&layer5
 		self.inplanes = 2 * self.c
 		assert repnet_sz[2] == repnet_sz[3]
 		print('repnet sz:', repnet_sz)
@@ -34,7 +39,7 @@ class Compare(nn.Module):
 
 	def _make_layer(self, block, planes, blocks, stride=1):
 		"""
-		make Bottlenack layer * blocks.
+		make Bottleneck layer * blocks.
 		:param block:
 		:param planes:
 		:param blocks:
@@ -86,10 +91,10 @@ class Compare(nn.Module):
 
 		comb = self.layer5(self.layer4(comb.view(batchsz * querysz * setsz, 2 * c, d, d)))
 		# print('layer5 sz:', comb.size()) # (5*5*5, 256, 4, 4)
-		comb = F.avg_pool2d(comb, 3) # (5*5*5, 256, 1, 1)
-		# print('avg sz:', comb.size())
+		comb = F.avg_pool2d(comb, 3)
+		# print('avg sz:', comb.size()) # (5*5*5, 256, 1, 1)
 		# push to Linear layer
-		# [b * querysz * setsz, -1] => [b * querysz * setsz, 1] => [b, querysz, setsz, 1] => [b, querysz, setsz]
+		# [b * querysz * setsz, 256] => [b * querysz * setsz, 1] => [b, querysz, setsz, 1] => [b, querysz, setsz]
 		score = self.fc(comb.view(batchsz * querysz * setsz, -1)).view(batchsz, querysz, setsz, 1).squeeze(3)
 
 		# build its label
@@ -100,9 +105,12 @@ class Compare(nn.Module):
 		# eq: [b, querysz, setsz] => [b, querysz, setsz] and convert byte tensor to float tensor
 		label = torch.eq(support_yf, query_yf).float()
 
+		# score: [b, querysz, setsz]
+		# label: [b, querysz, setsz]
 		if train:
 			loss = torch.pow(label - score, 2).sum() / batchsz
 			return loss
+
 		else:
 			# [b, querysz, setsz]
 			rn_score_np = score.cpu().data.numpy()
@@ -111,6 +119,7 @@ class Compare(nn.Module):
 			support_y_np = support_y.cpu().data.numpy()
 			for i, batch in enumerate(rn_score_np):
 				for j, query in enumerate(batch):
+					# query: [setsz]
 					sim = []  # [n_way]
 					for way in range(self.n_way):
 						sim.append(np.sum(query[way * self.k_shot: (way + 1) * self.k_shot]))
