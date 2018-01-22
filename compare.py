@@ -32,6 +32,7 @@ class Compare(nn.Module):
 		self.layer5 = self._make_layer(Bottleneck, 64, 3, stride=2)
 		self.fc = nn.Sequential(
 			nn.Linear(256 , 64),
+			nn.BatchNorm1d(64),
 			nn.ReLU(inplace=True),
 			nn.Linear(64, 1),
 			nn.Sigmoid()

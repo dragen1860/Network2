@@ -14,14 +14,14 @@ if __name__ == '__main__':
 	from datetime import datetime
 
 	n_way = 5
-	k_shot = 1  
+	k_shot = 5
 	k_query = 1 # query num per class
-	batchsz = 22
+	batchsz = 3
 	# Multi-GPU support
-	print('To run on single machine, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = torch.nn.DataParallel(Compare(n_way, k_shot), device_ids=[0,1]).cuda()
+	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
+	net = torch.nn.DataParallel(Compare(n_way, k_shot), device_ids=[0]).cuda()
 	# print(net)
-	mdl_file = 'ckpt/compare_%d%d.mdl' % (net.module.c, net.module.d)
+	mdl_file = 'ckpt/compare%d%d.mdl'%(n_way, k_shot)
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
@@ -39,10 +39,10 @@ if __name__ == '__main__':
 
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
 		                    batchsz=10000, resize=224)
-		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8)
+		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='val', n_way=n_way, k_shot=k_shot, k_query=k_query,
 		                        batchsz=200, resize=224)
-		db_val = DataLoader(mini_val, batchsz, shuffle=True)
+		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=2, pin_memory=True)
 
 		for step, batch in enumerate(db):
 			support_x = Variable(batch[0]).cuda()
@@ -52,14 +52,14 @@ if __name__ == '__main__':
 
 			net.train()
 			loss = net(support_x, support_y, query_x, query_y)
-			loss = loss.sum() # Multi-GPU support
+			loss = loss.mean() # Multi-GPU support
 
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
 
 			total_val_loss = 0
-			if step % 100 == 0:
+			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard

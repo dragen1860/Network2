@@ -5,11 +5,11 @@ from torch.autograd import Variable
 
 def make_imgs(n_way, k_shot, n_query_per_cls, batchsz,
               support_x, support_y, query_x, query_y, query_pred,
-              mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)):
+              mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
 	# randomly select one batch
 	batchidx = np.random.randint(batchsz)
 	# k_shot . n_qeuery_per_cls...6... n_query_per_cls
-	max_width = (k_shot + n_query_per_cls * 2 + 6)
+	max_width = (k_shot + n_query_per_cls * 2 + 4)
 
 	# de-normalize
 	img_support = support_x[batchidx].clone()
@@ -50,7 +50,7 @@ def make_imgs(n_way, k_shot, n_query_per_cls, batchsz,
 				all_img[row * max_width + pos] = img.data  # copy img
 				pos += 1
 
-	print('label for support:', label.data.cpu().numpy())
+	print('label for support:', label.data.cpu().numpy().tolist())
 	print('label for query  :', query_y.data[batchidx].cpu().numpy())
 	print('label for pred   :', query_pred.data[batchidx].cpu().numpy())
 
