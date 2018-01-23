@@ -77,9 +77,9 @@ class Matrix(nn.Module):
 
 		# get relation matrix
 		# input: [b*querysz, setsz+1, c_, h, w]
-		# score: [b*querysz, setsz+1, setsz+1]
+		# score: [b*querysz, setsz+1, setsz+1] => [b, querysz, setsz+1, setsz+1]
 		# this is different forward, whose size: [b, setsz+querysz, setsz+querysz]
-		score = self.rn(input)
+		score = self.rn(input).view(batchsz, querysz, setsz + 1, setsz + 1)
 
 		# now try to find the maximum similar node from score matrix
 		# [b, querysz, setsz+1, setsz+1]
@@ -87,7 +87,7 @@ class Matrix(nn.Module):
 		pred = []
 		support_y_np = support_y.cpu().data.numpy()
 		for i, batch in enumerate(score_np): # batch [querysz, setsz+1, setsz+1]
-			for j, query in enumerate(batch): # query [setsz+1, setsz+1]
+			for j, query in enumerate(batch): # query [setsz+1, setsz+1] 
 				row = query[-1, :-1] # [setsz], the last row, all columns from 0 to -1, exclusive
 				col = query[:-1, -1] # [setsz], the last column, all rows from 0 to -1, exclusive
 				row_sim = col_sim = [] # [n_way]
