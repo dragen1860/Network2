@@ -19,8 +19,7 @@ class Matrix(nn.Module):
 
 		# (256, 4, 4)
 		self.repnet = nn.Sequential(repnet_deep(False), # (1024, 14, 14)
-		                            nn.Conv2d(1024, 256, kernel_size=5, stride=3),
-		                            nn.BatchNorm2d(256),
+		                            nn.MaxPool2d(3),
 		                            nn.ReLU(inplace=True))
 		# we need to know the feature dim, so here is a forwarding.
 		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224))).size()
@@ -46,9 +45,10 @@ class Matrix(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 29),
+		                       nn.Linear(256, 64),
+		                       nn.BatchNorm2d(64),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(29, 1),
+		                       nn.Linear(64, 1),
 		                       nn.Sigmoid())
 
 		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])

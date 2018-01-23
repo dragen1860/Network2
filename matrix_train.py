@@ -66,7 +66,7 @@ if __name__ == '__main__':
 			optimizer.step()
 
 			total_val_loss = 0
-			if step % 100 == 0:
+			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard

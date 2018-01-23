@@ -17,7 +17,7 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 8
+	batchsz = 10
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
-		net.load_state_dict(torch.load(mdl_file))
+		net.load_state_dict(torch.load(mdl_file), strict=False)
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 		                    batchsz=10000, resize=224)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                        batchsz=600, resize=224)
+		                        batchsz=200, resize=224)
 		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=3, pin_memory=True)
 		total_train_loss = 0
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 			optimizer.step()
 
 			total_val_loss = 0
-			if step % 100 == 0:
+			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard
