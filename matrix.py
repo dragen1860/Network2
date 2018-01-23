@@ -69,7 +69,7 @@ class Matrix(nn.Module):
 		batchsz, setsz, c_, h, w = support_x.size()
 		querysz = query_x.size(1)
 		# [b, setsz, c_, h, w] => [b, 1, setsz, c_, h, w] => [b, querysz, setsz, c_, h, w] => [b*querysz, setsz, c_, h, w]
-		support_x = support_x.unsqueeze(1).expand(batchsz, querysz, setsz, c_, h, w).view(batchsz * querysz, setsz, c_, h, w)
+		support_x = support_x.unsqueeze(1).expand(batchsz, querysz, setsz, c_, h, w).contiguous().view(batchsz * querysz, setsz, c_, h, w)
 		# [b, querysz, c_, h, w] => [b, querysz, 1, c_, h, w] => [b*querysz, 1, c_, h, w]
 		query_x = query_x.unsqueeze(2).view(batchsz * querysz, 1, c_, h, w)
 		# cat [b*querysz, setsz, c_, h, w] with [b*querysz, 1, c_, h, w] => [b*querysz, setsz+1, c_, h, w]
