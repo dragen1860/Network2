@@ -178,9 +178,9 @@ class Matrix(nn.Module):
 		# cat [b, setsz/querysz] => [b, setsz+querysz]
 		input_y = torch.cat([support_y, query_y], dim = 1)
 		# [b, setsz+querysz] => [b, 1, setsz+querysz] => [b, setsz+querysz, setsz+querysz]
-		input_y_i = input_y.unsqueeze(1).expand(batchsz, querysz + querysz, setsz+querysz)
+		input_y_i = input_y.unsqueeze(1).expand(batchsz, setsz + querysz, setsz + querysz)
 		# [b, setsz+querysz] => [b, setsz+querysz, 1] => [b, setsz+querysz, setsz+querysz]
-		input_y_j = input_y.unsqueeze(2).expand(batchsz, setsz+querysz, setsz+querysz)
+		input_y_j = input_y.unsqueeze(2).expand(batchsz, setsz + querysz, setsz + querysz)
 		# eq: [b, setsz+querysz, setsz+querysz] => [b, setsz+querysz, setsz+querysz] and convert byte tensor to float tensor
 		label = torch.eq(input_y_i, input_y_j).float()
 
