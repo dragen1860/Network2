@@ -102,7 +102,7 @@ class CompSum(nn.Module):
 		# push G network
 		# [b*querysz*setsz, 2c, d, d] => [b*querysz*setsz, 256] => [b, querysz, setsz, 256]
 		# [10, 5, 5, 4096]
-		comb = self.g(comb.view(batchsz * querysz * setsz, 2 * c, d, d)).view(batchsz, querysz, setsz, -1) 
+		comb = self.g(comb.view(batchsz * querysz * setsz, 2 * c, d, d)).view(batchsz, querysz, setsz, -1)
 		# [b, querysz, setsz, -1] => [b, querysz, -1]
 		comb = comb.sum(dim = 2)
 		# push to Linear layer
@@ -119,14 +119,16 @@ class CompSum(nn.Module):
 		# [b, querysz, setsz] => [b*querysz, 3], while b*querysz is number of non-zero, and 3 is the dim of tensor
 		query_y_idx = torch.eq(support_y_, query_y_).nonzero()
 		# only retain the last index, => [b, querysz]
-		query_y_idx = (query_y_idx[...,-1]).view(batchsz, querysz)
+		query_y_idx = (query_y_idx[...,-1]).contiguous().view(batchsz, querysz)
 		if train:
 			loss = self.criteon(score.view(batchsz * querysz, self.n_way), query_y_idx.view(-1))
 			return loss
 
 		else:
-			# [b, querysz, n_way] => [b, querysz], index
+			# [b, querysz, n_way] => [b, querysz, n_way]
 			indices = F.softmax(score, dim= 2)
+			# [b, querysz, n_way] => [b, querysz], indx
+			_, indices = torch.max(indices, dim = 2)
 			# [b, setsz] along with dim = 1, index = softmax output
 			# => [b, querysz]
 			pred = torch.gather(support_y, dim= 1, index= indices)
