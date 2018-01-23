@@ -22,6 +22,7 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 | MAML                                | Y         | 48.7%      | 63.11% | 16.49%     | 19.29% |
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | TCML                                |           | 55.71%     | 68.88% | -          | -      |
-| Learning to Compare            | N         | 57.02%     | 71.07% | -          | -      |
-| Ours				      | N         |  56.8%     |    68.8%      |          |        | 
+| Learning to Compare           	  | N         | 57.02%     | 71.07% | -          | -      |
+| ***reproduction*				      | N         |  55.2%     |    68.8% |          |        | 
+| ***Ours*				     		  | N         |  53.0%     |    64.6% |          |        | 
 

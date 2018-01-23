@@ -3,7 +3,7 @@ import numpy as np
 from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
-from rn import RN
+from matrix import Matrix
 from utils import make_imgs
 
 if __name__ == '__main__':
@@ -23,9 +23,9 @@ if __name__ == '__main__':
 	random.seed(66)
 	# Multi-GPU support
 	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = torch.nn.DataParallel(RN(n_way, k_shot), device_ids=[0]).cuda()
+	net = torch.nn.DataParallel(Matrix(n_way, k_shot), device_ids=[0]).cuda()
 	print(net)
-	mdl_file = 'ckpt/rn%d%d.mdl'%(n_way, k_shot)
+	mdl_file = 'ckpt/matrix%d%d.mdl'%(n_way, k_shot)
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 					query_y = Variable(batch_test[3]).cuda()
 
 					net.eval()
-					pred, correct = net(support_x, support_y, query_x, query_y, False)
+					pred, correct = net.predict(support_x, support_y, query_x, query_y)
 					correct = correct.sum() # multi-gpu support
 					total_correct += correct.data[0]
 					total_num += query_y.size(0) * query_y.size(1)
