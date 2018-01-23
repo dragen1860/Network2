@@ -104,11 +104,13 @@ class MiniImagenet(Dataset):
 		for b in range(batchsz):  # for each batch
 			# 1.select n_way classes randomly
 			selected_cls = np.random.choice(self.cls_num, self.n_way, False)  # no duplicate
+			np.random.shuffle(selected_cls)
 			support_x = []
 			query_x = []
 			for cls in selected_cls:
 				# 2. select k_shot + k_query for each class
 				selected_imgs_idx = np.random.choice(len(self.data[cls]), self.k_shot + self.k_query, False)
+				np.random.shuffle(selected_imgs_idx)
 				indexDtrain = np.array(selected_imgs_idx[:self.k_shot])  # idx for Dtrain
 				indexDtest = np.array(selected_imgs_idx[self.k_shot:])  # idx for Dtest
 				support_x.append(
