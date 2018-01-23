@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
-		net.load_state_dict(torch.load(mdl_file), strict=False)
+		net.load_state_dict(torch.load(mdl_file))
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
