@@ -14,6 +14,8 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 
 # mini-Imagenet
 
+## Deeper version
+
 | Model                               | Fine Tune | 5-way Acc. |        | 20-way Acc |        |
 |-------------------------------------|-----------|------------|--------|------------|--------|
 |                                     |           | 1-shot     | 5-shot | 1-shot     | 5-shot |
@@ -26,3 +28,14 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 | ***reproduction*				      | N         |  55.2%     |    68.8% |          |        | 
 | ***Ours*				     		  | N         |  53.0%     |    64.6% |          |        | 
 
+## Naive version
+
+| Model                               | Fine Tune | 5-way Acc. |        | 20-way Acc |        |
+|-------------------------------------|-----------|------------|--------|------------|--------|
+|                                     |           | 1-shot     | 5-shot | 1-shot     | 5-shot |
+| Matching Nets                       | N         | 43.56%     | 55.31% | 17.31%     | 22.69% |
+| Meta-LSTM                           |           | 43.44%     | 60.60% | 16.70%     | 26.06% |
+| MAML                                | Y         | 48.7%      | 63.11% | 16.49%     | 19.29% |
+| Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
+| Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
+| naivern.py                          |     N      | 53.8%     |		| -    | - |

@@ -6,7 +6,7 @@ import numpy as np
 import collections
 from PIL import Image
 import csv
-
+import random
 
 class MiniImagenet(Dataset):
 	"""
@@ -99,6 +99,9 @@ class MiniImagenet(Dataset):
 		:param episodes: batch size
 		:return:
 		"""
+
+		print('=========shuttle dataset============')
+
 		self.support_x_batch = []  # support set batch
 		self.query_x_batch = []  # query set batch
 		for b in range(batchsz):  # for each batch
@@ -116,6 +119,10 @@ class MiniImagenet(Dataset):
 				support_x.append(
 					np.array(self.data[cls])[indexDtrain].tolist())  # get all images filename for current Dtrain
 				query_x.append(np.array(self.data[cls])[indexDtest].tolist())
+
+			# shuffle the correponding relation between support set and query set
+			random.shuffle(support_x)
+			random.shuffle(query_x)
 
 			self.support_x_batch.append(support_x)  # append set to current sets
 			self.query_x_batch.append(query_x)  # append sets to current sets

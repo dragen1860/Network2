@@ -16,7 +16,7 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 10
+	batchsz = 1
 	# Multi-GPU support
 	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
 	net = torch.nn.DataParallel(CompSum(n_way, k_shot), device_ids=[0]).cuda()

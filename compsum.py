@@ -37,7 +37,7 @@ class CompSum(nn.Module):
 		self.layer5 = self._make_layer(Bottleneck, 64, 3, stride=2)
 		self.g = nn.Sequential(self.layer4,
 		                       self.layer5,
-		                       nn.AvgPool2d(3))
+		                       nn.AvgPool2d(4))
 		self.f = nn.Sequential(
 			nn.Linear(256 , 64),
 			nn.BatchNorm1d(64),
