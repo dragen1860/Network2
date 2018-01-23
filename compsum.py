@@ -32,11 +32,11 @@ class CompSum(nn.Module):
 		print('repnet sz:', repnet_sz)
 
 		# after relational module
-		# (1024, 14, 14) => [256]
-		self.g = nn.Sequential(
-		                            nn.MaxPool2d(3,1),
-		                            nn.ReLU(inplace=True))
-		print('G sz:', self.g(repnet_output).size())
+		# concat 2* (1024, 14, 14) => [256]
+		self.layer4 = self._make_layer(Bottleneck, 128, 4, stride=2)
+		self.layer5 = self._make_layer(Bottleneck, 64, 3, stride=2)
+		self.g = nn.Sequential(self.layer4,
+		                       self.layer5)
 		self.f = nn.Sequential(
 			nn.Linear(256 , 64),
 			nn.BatchNorm1d(64),
@@ -98,8 +98,10 @@ class CompSum(nn.Module):
 		# cat: [b, querysz, setsz, c, d, d] => [b, querysz, setsz, 2c, d, d]
 		comb = torch.cat([support_xf, query_xf], dim=3)
 
+		# push G network
 		# [b*querysz*setsz, 2c, d, d] => [b*querysz*setsz, 256] => [b, querysz, setsz, 256]
 		comb = self.g(comb.view(batchsz * querysz * setsz, 2 * c, d, d)).view(batchsz, querysz, setsz, -1)
+		print('comb size', comb.size())
 		# [b, querysz, setsz, -1] => [b, querysz, -1]
 		comb = comb.sum(dim = 2)
 		# push to Linear layer
