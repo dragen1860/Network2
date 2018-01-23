@@ -1,4 +1,5 @@
 import torch, os
+from torch import nn
 import numpy as np
 from torch import optim
 from torch.autograd import Variable
@@ -17,13 +18,13 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 5
+	batchsz = 8
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
 	# Multi-GPU support
 	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = Matrix(n_way, k_shot).cuda()
+	net = nn.DataParallel(Matrix(n_way, k_shot), device_ids=[0, 1]).cuda()
 	print(net)
 	mdl_file = 'ckpt/matrix%d%d.mdl'%(n_way, k_shot)
 

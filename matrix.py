@@ -152,13 +152,16 @@ class Matrix(nn.Module):
 
 	def forward(self, support_x, support_y, query_x, query_y, train=True):
 		"""
-
+		To satisfy the multi-gpu trainined, we merge predict and train into one forward function.
 		:param support_x: [b, setsz, c_, h, w]
 		:param support_y: [b, setsz]
 		:param query_x:   [b, querysz, c_, h, w]
 		:param query_y:   [b, querysz]
 		:return:
 		"""
+		if not train:
+			return self.predict(support_x, support_y, query_x, query_y)
+
 		# [b, setsz, c_, h, w] + [b, querysz, c_, h, w] => [batchsz, setsz+querysz, c_, h, w]
 		input = torch.cat([support_x, query_x], dim = 1)
 		#
