@@ -33,10 +33,10 @@ class CompSum(nn.Module):
 
 		# after relational module
 		# (1024, 14, 14) => [256]
-		self.g = nn.Sequential(nn.Conv2d(1024, 256, kernel_size=7, stride=3), # (256, 3, 3)
+		self.g = nn.Sequential(
 		                            nn.MaxPool2d(3,1),
 		                            nn.ReLU(inplace=True))
-		print('G sz:', self.layer4(repnet_output).size())
+		print('G sz:', self.g(repnet_output).size())
 		self.f = nn.Sequential(
 			nn.Linear(256 , 64),
 			nn.BatchNorm1d(64),
