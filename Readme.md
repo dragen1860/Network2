@@ -38,4 +38,4 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 | MAML                                | Y         | 48.7%      | 63.11% | 16.49%     | 19.29% |
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
-| naivern.py                          |     N      | 53.8%     |		| -    | - |
+| naivern.py      (naive version)                    |     N      | 53.8%     |	67.5%	| -    | - |
