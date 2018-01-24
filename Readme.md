@@ -1,15 +1,3 @@
-# LearningToCompare
-Pytorch Implementation for Paper: Learning to Compare: Relation Network for Few-Shot Learning
-
-# Howto
-```python
-python train.py
-```
-
-# NOTICE
-current code support multi-gpus on single machine training, to disable it and train on single machine, 
-just set device_ids=[0] and downsize batch size according to your gpu memory capacity.
-make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 
 
 # mini-Imagenet
