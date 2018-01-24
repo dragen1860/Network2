@@ -16,9 +16,9 @@ if __name__ == '__main__':
 	import random
 
 	n_way = 5
-	k_shot = 1
+	k_shot = 5
 	k_query = 1 # query num per class
-	batchsz = 5
+	batchsz = 3
 	imgsz = 224
 	torch.manual_seed(66)
 	np.random.seed(66)
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 					total_correct += correct.data[0]
 					total_num += query_y.size(0) * query_y.size(1)
 
-					print('.', end='')
+					# print('.', end='')
 
 					if not display_onebatch:
 						display_onebatch = True  # only display once

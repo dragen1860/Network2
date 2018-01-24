@@ -84,7 +84,7 @@ class NaiveRN(nn.Module):
 		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
-		print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
+		# print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
 
 
 
@@ -103,6 +103,15 @@ class NaiveRN(nn.Module):
 
 		# [b, setsz, c_, h, w] => [b*setsz, c_, h, w] => [b*setsz, c, d, d] => [b, setsz, c, d, d]
 		support_xf = self.repnet(support_x.view(batchsz * setsz, c_, h, w)).view(batchsz, setsz, c, d, d)
+
+		# # sum over k_shot imgs to ensemble
+		# # [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d], sum over k_shot dim
+		# # => [b, n_way, c, d, d]
+		# support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
+		# setsz = self.n_way
+		# # [b, n_way*k_shot] => [b, n_way]
+		# support_y = support_y[:, ::self.k_shot]
+
 		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
 		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
 
