@@ -4,55 +4,26 @@ from torch import optim
 from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
-from repnet import repnet_deep, Bottleneck
+from repnet import repnet_sim, Bottleneck
 
 
-class Naive(nn.Module):
-
-	def __init__(self):
-		super(Naive, self).__init__()
-
-		self.net = nn.Sequential(nn.Conv2d(3, 64, kernel_size=3),
-		                         nn.MaxPool2d(kernel_size=2),
-		                         nn.BatchNorm2d(64),
-		                         nn.ReLU(inplace=True),
-
-		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.MaxPool2d(kernel_size=2),
-		                         nn.BatchNorm2d(64),
-		                         nn.ReLU(inplace=True),
-
-		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.BatchNorm2d(64),
-		                         nn.ReLU(inplace=True),
-
-		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.BatchNorm2d(64),
-		                         nn.ReLU(inplace=True),
-		                         )
-		# Avg Pooling is better
-		self.downsample = nn.Sequential(nn.AvgPool2d(5,5))
-
-	def forward(self, input):
-		input =  self.net(input)
-		return self.downsample(input)
-
-
-class NaiveRN(nn.Module):
+class SimRN(nn.Module):
 	"""
-
+	simple version of RN, with shallow and simple network.
 	"""
-	def __init__(self, n_way, k_shot, imgsz):
-		super(NaiveRN, self).__init__()
+	def __init__(self, n_way, k_shot):
+		super(SimRN, self).__init__()
 
 		self.n_way = n_way
 		self.k_shot = k_shot
 
-		self.repnet = Naive()
-
+		self.repnet = nn.Sequential(repnet_sim(False), # (1024, 14, 14)
+		                            nn.MaxPool2d(5,3),
+		                            # nn.Conv2d(1024, 256, kernel_size=5, stride=3),
+		                            nn.BatchNorm2d(1024),
+		                            nn.ReLU(inplace=True))
 		# we need to know the feature dim, so here is a forwarding.
-		# => [64, 10, 10]
-		repnet_sz = self.repnet(Variable(torch.rand(2, 3, imgsz, imgsz))).size()
+		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224))).size()
 		self.c = repnet_sz[1]
 		self.d = repnet_sz[2]
 		# this is the input channels of layer4&layer5
@@ -75,10 +46,9 @@ class NaiveRN(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 64),
-		                       nn.BatchNorm1d(64),
+		                       nn.Linear(256, 29),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(64, 1),
+		                       nn.Linear(29, 1),
 		                       nn.Sigmoid())
 
 		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])

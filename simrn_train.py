@@ -3,14 +3,13 @@ import numpy as np
 from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
-from naivern import NaiveRN
+from simrn import SimRN
 from utils import make_imgs
 
 if __name__ == '__main__':
 	from MiniImagenet import MiniImagenet
 	from torch.utils.data import DataLoader
 	from torchvision.utils import make_grid
-	from torch.optim import lr_scheduler
 	from tensorboardX import SummaryWriter
 	from datetime import datetime
 	import random
@@ -18,16 +17,15 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 100
-	imgsz = 224
+	batchsz = 10
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
 	# Multi-GPU support
 	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = torch.nn.DataParallel(NaiveRN(n_way, k_shot, imgsz), device_ids=[0]).cuda()
+	net = torch.nn.DataParallel(SimRN(n_way, k_shot), device_ids=[0]).cuda()
 	print(net)
-	mdl_file = 'ckpt/naivern%d%d.mdl'%(n_way, k_shot)
+	mdl_file = 'ckpt/simrn%d%d.mdl'%(n_way, k_shot)
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
@@ -37,18 +35,17 @@ if __name__ == '__main__':
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=1e-3)
-	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=10, verbose=True)
+	optimizer = optim.Adam(net.parameters(), lr=5e-4)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
 	for epoch in range(1000):
 
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                    batchsz=10000, resize=imgsz)
+		                    batchsz=10000, resize=224)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                        batchsz=300, resize=imgsz)
+		                        batchsz=300, resize=224)
 		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=3, pin_memory=True)
 		total_train_loss = 0
 
@@ -68,7 +65,7 @@ if __name__ == '__main__':
 			optimizer.step()
 
 			total_val_loss = 0
-			if step % 300 == 0:
+			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard
@@ -84,8 +81,6 @@ if __name__ == '__main__':
 					total_correct += correct.data[0]
 					total_num += query_y.size(0) * query_y.size(1)
 
-					print('.', end='')
-
 					if not display_onebatch:
 						display_onebatch = True  # only display once
 						all_img, max_width = make_imgs(n_way, k_shot, k_query, support_x.size(0),
@@ -94,15 +89,13 @@ if __name__ == '__main__':
 						tb.add_image('result batch', all_img)
 
 				accuracy = total_correct / total_num
-				if accuracy > best_accuracy :
+				if accuracy > best_accuracy:
 					best_accuracy = accuracy
 					torch.save(net.state_dict(), mdl_file)
-					print('Saved to checkpoint:', mdl_file)
+					print('saved to checkpoint:', mdl_file)
 
 				tb.add_scalar('accuracy', accuracy)
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
-
-				scheduler.step(accuracy)
 
 			if step % 20 == 0 and step != 0:
 				tb.add_scalar('loss', total_train_loss)
