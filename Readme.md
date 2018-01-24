@@ -39,3 +39,9 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
 | naivern.py      (naive version)                    |     N      | 53.8%     |	67.5%	| -    | - |
+
+
+* 6x6 spational relation seems good, meaning larger spatial will lead to better
+* naive version overcome all, meaning simplier nn 
+* the conv after repnet will occupy very huge gpu memory, but only reduce it will not lead to good, 51% on 5-way-1shot
+* 
