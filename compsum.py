@@ -39,7 +39,9 @@ class CompSum(nn.Module):
 		                       self.layer5,
 		                       nn.AvgPool2d(4))
 		self.f = nn.Sequential(
-			nn.Linear(256 , 64),
+			nn.Linear(256 , 128),
+			nn.ReLU(inplace=True),
+			nn.Linear(128 , 64),
 			nn.BatchNorm1d(64),
 			nn.ReLU(inplace=True),
 			nn.Linear(64, n_way)

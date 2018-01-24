@@ -39,6 +39,8 @@ make sure `ckpt` directory exists, otherwise `mkdir ckpt`.
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
 | naivern.py      (naive version)                    |     N      | 53.8%     |	67.5%	| -    | - |
+| naivern.py      (naive version, avg pool)                    |     N      | 56.0%     |		| -    | - |
+| rn.py, 6x6, conv->maxpool                    |     N      | 53.3%     |		| -    | - |
 
 
 * 6x6 spational relation seems good, meaning larger spatial will lead to better

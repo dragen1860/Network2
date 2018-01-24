@@ -30,7 +30,8 @@ class Naive(nn.Module):
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 		                         )
-		self.downsample = nn.Sequential(nn.MaxPool2d(5,5))
+		# Avg Pooling is better
+		self.downsample = nn.Sequential(nn.AvgPool2d(5,5))
 
 	def forward(self, input):
 		input =  self.net(input)

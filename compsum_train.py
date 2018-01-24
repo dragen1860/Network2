@@ -16,11 +16,11 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 1
+	batchsz = 5
 	# Multi-GPU support
 	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
 	net = torch.nn.DataParallel(CompSum(n_way, k_shot), device_ids=[0]).cuda()
-	# print(net)
+	print(net)
 	mdl_file = 'ckpt/compsum%d%d.mdl'%(n_way, k_shot)
 
 	if os.path.exists(mdl_file):
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=1e-3)
+	optimizer = optim.Adam(net.parameters(), lr=1e-2)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
