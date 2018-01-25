@@ -1,98 +1,127 @@
-from omniglotNShot import OmniglotNShot
-import torch
+import torch, os
 from torch import optim
 from torch.autograd import Variable
-import numpy as np
 from tensorboardX import SummaryWriter
+import numpy as np
 import torchvision
-from naivern import NaiveRN
+from Omni_NaiveRN import NaiveRN
+from omniglotNShot import OmniglotNShot
+from torchvision.utils import make_grid
+from utils import make_imgs
+from torch.optim import lr_scheduler
+import argparse
+
 
 
 def main():
+	argparser = argparse.ArgumentParser()
+	argparser.add_argument('-n', help='n way')
+	argparser.add_argument('-k', help='k shot')
+	argparser.add_argument('-b', help='batch size')
+	args = argparser.parse_args()
+	n_way = int(args.n)
+	k_shot = int(args.k)
+	k_query = 1
+	batchsz = int(args.b)
+	imgsz = 84
 
-	n_way = 5
-	k_shot = 1
-	batch_size = 2
-	imgsz = 28
-	db = OmniglotNShot('dataset', batch_size=batch_size, samples_per_class=k_shot, classes_per_set=n_way)
-	print('%d-way %d-shot learning' % (n_way, k_shot))
-	rn = NaiveRN(n_way, k_shot, imgsz).cuda()
+	db = OmniglotNShot('dataset', batchsz=batchsz, n_way=n_way, k_shot=k_shot, k_query=k_query)
+	print('OmniglotNShot %d-way %d-shot learning' % (n_way, k_shot))
+	net = NaiveRN(n_way, k_shot, imgsz).cuda()
+	print(net)
+	mdl_file = 'ckpt/omni%d%d.mdl'%(n_way, k_shot)
+
+	if os.path.exists(mdl_file):
+		print('load checkpoint ...', mdl_file)
+		net.load_state_dict(torch.load(mdl_file))
+
+	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
+	params = sum([np.prod(p.size()) for p in model_parameters])
+	print('total params:', params)
 
 	input, input_y, query, query_y = db.get_batch('train')  # (batch, n_way*k_shot, img)
 	print('get_batch:', input.shape, query.shape, input_y.shape, query_y.shape)
 
-	optimizer = optim.Adam(rn.parameters(), lr=1e-3)
+	optimizer = optim.Adam(net.parameters(), lr=1e-3)
+	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=10, verbose=True)
 	tb = SummaryWriter('runs')
 
-	for epoch in range(1000000):
-		input, input_y, query, query_y = db.get_batch('train')
-		input = Variable(torch.from_numpy(input).float()).cuda()
-		query = Variable(torch.from_numpy(query).float()).cuda()
-		input_y = Variable(torch.from_numpy(input_y).float()).cuda()  # [batch, setsz, 1]
-		query_y = Variable(torch.from_numpy(query_y).float()).cuda()
-		loss, _ = rn(input, input_y, query,  query_y)
+	total_train_loss = 0
+	best_accuracy = 0
+	for step in range(100000000):
 
-		if epoch % 20 == 0:
-			print(epoch, loss.cpu().data[0])
+		support_x, support_y, query_x, query_y = db.get_batch('train')
+		support_x = Variable(torch.from_numpy(support_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
+		query_x = Variable(torch.from_numpy(query_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
+		support_y = Variable(torch.from_numpy(support_y).int()).cuda()
+		query_y = Variable(torch.from_numpy(query_y).int()).cuda()
 
-		optimizer.zero_grad()
-		loss.backward()
-		optimizer.step()
-
-
-	for epoch in range(1000000):
-		input, input_y, query, query_y = db.get_batch('train')
-		input = Variable(torch.from_numpy(input).float().transpose(2,4).repeat(1,1,3,1,1)).cuda()
-		query = Variable(torch.from_numpy(query).float().transpose(2,4).repeat(1,1,3,1,1)).cuda()
-		input_y = Variable(torch.from_numpy(input_y).float()).cuda()  # [batch, setsz, 1]
-		query_y = Variable(torch.from_numpy(query_y).float()).cuda()
-		loss, _ = rn.forward(input, input_y, query,  query_y)
-
-		if epoch % 20 == 0:
-			print(epoch, loss.cpu().data[0])
+		loss = net(support_x, support_y, query_x,  query_y)
+		total_train_loss += loss.data[0]
 
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
 
-		if False:
-			total_accuracy = 0
-			batch_size_test = 100
-			for i in range(batch_size_test // batch_size):  # 100  sets
-				input, input_y, query, query_y = db.get_batch('val')
 
-				input = Variable(torch.from_numpy(input).float()).cuda()
-				query = Variable(torch.from_numpy(query).float()).cuda()
-				input_y = Variable(torch.from_numpy(input_y).unsqueeze(2).float()).cuda()
-				query_y = Variable(torch.from_numpy(query_y).unsqueeze(2).float()).cuda()
-				accuracy, query_pred = rn.predict(input, query, input_y, query_y)
+		if step % 400 == 0:
+			total_correct = 0
+			total_num = 0
+			total_set_num = 0 # we only test 600 episodes in total
+			display_onebatch = False  # display one batch on tensorboard
 
-				total_accuracy += accuracy.data[0]
+			while total_set_num < 300:
+				support_x, support_y, query_x, query_y = db.get_batch('test')
+				support_x = Variable(torch.from_numpy(support_x).float().transpose(2,4).transpose(3, 4).repeat(1,1,3,1,1)).cuda()
+				query_x = Variable(torch.from_numpy(query_x).float().transpose(2,4).transpose(3, 4).repeat(1,1,3,1,1)).cuda()
+				support_y = Variable(torch.from_numpy(support_y).int()).cuda()
+				query_y = Variable(torch.from_numpy(query_y).int()).cuda()
 
-				batchidx = np.random.randint(batch_size)
-				input = input[batchidx]  # [setsz, h, w, c]
-				input_y = input_y[batchidx]  # [setsz, 1]
-				query = query[batchidx]
-				query_y = query_y[batchidx]
-				query_pred = query_pred[batchidx]
+				net.eval()
+				pred, correct = net(support_x, support_y, query_x, query_y, False)
+				total_correct += correct.data[0]
+				total_num += query_y.size(0) * query_y.size(1)
 
-				# make_grid of meta-training, sort them firstly
-				input_y_sorted, input_y_sorted_idx = torch.sort(input_y.squeeze(1), dim=0)  # [setsz]
-				input_sorted = torch.index_select(input, dim=0, index=input_y_sorted_idx)
-				imgs = torchvision.utils.make_grid(
-					input_sorted.data.transpose(1, 3).repeat(1, 3, 1, 1))  # accept tensor
-				# make_grid of meta-testing, put them in corresponding pos
-				query_imgs = torchvision.utils.make_grid(query.data.transpose(1, 3).repeat(2, 3, 1, 1))
 
-				tb.add_image('meta-train', imgs)
-				tb.add_image('meta-test', query_imgs)
-				tb.add_text('test pred:',
-				            str(query_pred.cpu().data.numpy()) + ' == gt:' + str(query_y.cpu().data.numpy()))
-				print(str(query_pred.cpu().data.numpy()) + ' == gt:' + str(query_y.cpu().data.numpy()))
+				if not display_onebatch:
+					display_onebatch = True  # only display once
+					all_img, max_width = make_imgs(n_way, k_shot, k_query, support_x.size(0),
+					                               support_x, support_y, query_x, query_y, pred)
+					all_img = make_grid(all_img, nrow=max_width)
+					tb.add_image('result batch', all_img)
 
-			tb.add_scalar('accuracy', total_accuracy / batch_size_test * batch_size)
+				total_set_num += batchsz
 
-			print('accuracy:', total_accuracy / batch_size_test * batch_size)
+			accuracy = total_correct / total_num
+			if accuracy > best_accuracy:
+				best_accuracy = accuracy
+				torch.save(net.state_dict(), mdl_file)
+				print('Saved to checkpoint:', mdl_file)
+
+			tb.add_scalar('accuracy', accuracy)
+			print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
+
+			scheduler.step(accuracy)
+
+		if step % 20 == 0 and step != 0:
+			tb.add_scalar('loss', total_train_loss)
+			print('%d-way %d-shot %d batch> step:%d, loss:%f' % (
+				n_way, k_shot, batchsz, step, total_train_loss))
+			total_train_loss = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
