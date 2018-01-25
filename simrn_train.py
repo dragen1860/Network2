@@ -17,7 +17,7 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 10
+	batchsz = 8
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=5e-4)
+	optimizer = optim.Adam(net.parameters(), lr=1e-3)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 		                    batchsz=10000, resize=224)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                        batchsz=300, resize=224)
+		                        batchsz=200, resize=224)
 		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=3, pin_memory=True)
 		total_train_loss = 0
 

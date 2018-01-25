@@ -81,6 +81,7 @@ class NaiveRN(nn.Module):
 		                       nn.Linear(64, 1),
 		                       nn.Sigmoid())
 
+		# deepmind coord: [(i // 5 - 2) / 2., (i % 5 - 2) / 2.]
 		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
