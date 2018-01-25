@@ -4,8 +4,7 @@ from torch import optim
 from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
-from repnet import repnet_sim, Bottleneck
-from torchvision.models import resnet18
+from simrn_repnet import repnet_sim
 
 class SimRN(nn.Module):
 	"""
@@ -18,9 +17,9 @@ class SimRN(nn.Module):
 		self.k_shot = k_shot
 
 		self.repnet = nn.Sequential(repnet_sim(False), # (1024, 14, 14)
-		                            nn.AvgPool2d(3,1),
+		                            nn.AvgPool2d(3,2,padding=1),
 		                            # nn.Conv2d(1024, 256, kernel_size=5, stride=3),
-		                            nn.BatchNorm2d(256),
+		                            nn.BatchNorm2d(128),
 		                            nn.ReLU(inplace=True))
 		# we need to know the feature dim, so here is a forwarding.
 		repnet_sz = self.repnet(Variable(torch.rand(2, 3, 224, 224))).size()

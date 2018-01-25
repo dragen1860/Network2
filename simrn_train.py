@@ -10,6 +10,7 @@ if __name__ == '__main__':
 	from MiniImagenet import MiniImagenet
 	from torch.utils.data import DataLoader
 	from torchvision.utils import make_grid
+	from torch.optim import lr_scheduler
 	from tensorboardX import SummaryWriter
 	from datetime import datetime
 	import random
@@ -17,7 +18,7 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 8
+	batchsz = 5
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
@@ -36,6 +37,7 @@ if __name__ == '__main__':
 	print('total params:', params)
 
 	optimizer = optim.Adam(net.parameters(), lr=1e-3)
+	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=10, verbose=True)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
@@ -96,6 +98,7 @@ if __name__ == '__main__':
 
 				tb.add_scalar('accuracy', accuracy)
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
+				scheduler.step(accuracy)
 
 			if step % 20 == 0 and step != 0:
 				tb.add_scalar('loss', total_train_loss)
