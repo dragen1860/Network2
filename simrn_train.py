@@ -18,7 +18,7 @@ if __name__ == '__main__':
 	n_way = 5
 	k_shot = 1
 	k_query = 1 # query num per class
-	batchsz = 5
+	batchsz = 15
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)

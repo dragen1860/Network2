@@ -91,9 +91,9 @@ class ResNet(nn.Module):
 		self.bn1 = nn.BatchNorm2d(32)
 		self.relu = nn.Sigmoid()
 		self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-		self.layer1 = self._make_layer(block, 32, layers[0])
+		self.layer1 = self._make_layer(block, 64, layers[0])
 		self.layer2 = self._make_layer(block, 64, layers[1], stride=2)
-		self.layer3 = self._make_layer(block, 128, layers[2], stride=2)
+		self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
 
 		for m in self.modules():
 			if isinstance(m, nn.Conv2d):
