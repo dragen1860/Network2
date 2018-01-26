@@ -3,7 +3,7 @@ import numpy as np
 from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
-from naivern import NaiveRN
+from naivesum import NaiveSum
 from utils import make_imgs
 
 if __name__ == '__main__':
@@ -15,7 +15,6 @@ if __name__ == '__main__':
 	from datetime import datetime
 	import random
 	import argparse
-	from torch import nn
 
 
 	argparser = argparse.ArgumentParser()
@@ -35,9 +34,9 @@ if __name__ == '__main__':
 	# np.random.seed(66)
 	# random.seed(66)
 
-	net = nn.DataParallel(NaiveRN(n_way, k_shot, imgsz), device_ids= [0]).cuda()
+	net = NaiveSum(n_way, k_shot, imgsz).cuda()
 	print(net)
-	mdl_file = 'ckpt/naivern%d%d.mdl'%(n_way, k_shot)
+	mdl_file = 'ckpt/naivesum%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
 
 	if os.path.exists(mdl_file):
@@ -79,7 +78,6 @@ if __name__ == '__main__':
 
 					net.eval()
 					pred, correct = net(support_x, support_y, query_x, query_y, False)
-					correct = correct.sum()
 					total_correct += correct.data[0]
 					total_num += query_y.size(0) * query_y.size(1)
 
@@ -103,7 +101,6 @@ if __name__ == '__main__':
 
 			net.train()
 			loss = net(support_x, support_y, query_x, query_y)
-			loss = loss.mean()
 			total_train_loss += loss.data[0]
 
 			optimizer.zero_grad()

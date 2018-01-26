@@ -14,12 +14,11 @@ if __name__ == '__main__':
 	from datetime import datetime
 
 	n_way = 5
-	k_shot = 1
+	k_shot = 5
 	k_query = 1 # query num per class
-	batchsz = 5
-	# Multi-GPU support
-	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = torch.nn.DataParallel(CompSum(n_way, k_shot), device_ids=[0]).cuda()
+	batchsz = 1
+
+	net = CompSum(n_way, k_shot).cuda()
 	print(net)
 	mdl_file = 'ckpt/compsum%d%d.mdl'%(n_way, k_shot)
 
@@ -29,9 +28,9 @@ if __name__ == '__main__':
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
-	print('total params:', params)
+	print('Total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=1e-2)
+	optimizer = optim.Adam(net.parameters(), lr=1e-3)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
@@ -45,18 +44,7 @@ if __name__ == '__main__':
 		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=2, pin_memory=True)
 
 		for step, batch in enumerate(db):
-			support_x = Variable(batch[0]).cuda()
-			support_y = Variable(batch[1]).cuda()
-			query_x = Variable(batch[2]).cuda()
-			query_y = Variable(batch[3]).cuda()
 
-			net.train()
-			loss = net(support_x, support_y, query_x, query_y)
-			loss = loss.mean() # Multi-GPU support
-
-			optimizer.zero_grad()
-			loss.backward()
-			optimizer.step()
 
 			total_val_loss = 0
 			if step % 200 == 0:
@@ -89,6 +77,19 @@ if __name__ == '__main__':
 
 				tb.add_scalar('accuracy', accuracy)
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
+
+
+			support_x = Variable(batch[0]).cuda()
+			support_y = Variable(batch[1]).cuda()
+			query_x = Variable(batch[2]).cuda()
+			query_y = Variable(batch[3]).cuda()
+
+			net.train()
+			loss = net(support_x, support_y, query_x, query_y)
+
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
 
 			if step % 15 == 0 and step != 0:
 				tb.add_scalar('loss', loss.cpu().data[0])

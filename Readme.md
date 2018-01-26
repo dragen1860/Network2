@@ -59,7 +59,7 @@
 | TCML                                |           | 55.71%     | 68.88% | -          | -      |
 | Learning to Compare           	  | N         | 57.02%     | 71.07% | -          | -      |
 | rn.py, 463bottleneck, 6x6, conv->maxpool                    |     N      | 53.3%     |		| -    | - |
-| simrn.py, 111basicneck                   |     N      | 53.0%     |		| -    | - |
+| simrn.py, 111basicneck                   |     N      | 55.4%     |	66.7%	| -    | - |
  
 
 

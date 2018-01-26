@@ -18,7 +18,6 @@ class CompSum(nn.Module):
 
 		self.n_way = n_way
 		self.k_shot = k_shot
-		assert  k_shot == 1
 
 		self.repnet = repnet_deep(False)
 		# we need to know the feature dim, so here is a forwarding.
@@ -90,6 +89,15 @@ class CompSum(nn.Module):
 
 		# [b, setsz, c_, h, w] => [b*setsz, c_, h, w] => [b*setsz, c, d, d] => [b, setsz, c, d, d]
 		support_xf = self.repnet(support_x.view(batchsz * setsz, c_, h, w)).view(batchsz, setsz, c, d, d)
+
+		# sum over k_shot imgs to ensemble
+		# [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d], sum over k_shot dim
+		# => [b, n_way, c, d, d]
+		support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
+		setsz = self.n_way
+		# [b, n_way*k_shot] => [b, n_way]
+		support_y = support_y[:, ::self.k_shot]
+
 		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
 		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
 
@@ -122,8 +130,18 @@ class CompSum(nn.Module):
 		query_y_idx = torch.eq(support_y_, query_y_).nonzero()
 		# only retain the last index, => [b, querysz]
 		query_y_idx = (query_y_idx[...,-1]).contiguous().view(batchsz, querysz)
+		# print(support_y[0].cpu().data.numpy())
+		# print(query_y[0].cpu().data.numpy())
+		# print(query_y_idx[0].cpu().data.numpy())
+
 		if train:
-			loss = self.criteon(score.view(batchsz * querysz, self.n_way), query_y_idx.view(-1))
+			# [b, querysz, nway] => [b, querysz, n_way]
+			score = F.sigmoid(score)
+			# [b, querysz, n_way]
+			label = torch.zeros_like(score).scatter_(2, query_y_idx.unsqueeze(2), 1).float()
+			# print('onehost', label[0].cpu().data.numpy())
+			# loss = self.criteon(score.view(batchsz * querysz, self.n_way), query_y_idx.view(-1))
+			loss = torch.pow(score - label, 2).sum() / batchsz
 			return loss
 
 		else:
