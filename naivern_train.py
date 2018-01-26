@@ -25,23 +25,25 @@ if __name__ == '__main__':
 	args = argparser.parse_args()
 	n_way = int(args.n)
 	k_shot = int(args.k)
-	k_query = 1
 	batchsz = int(args.b)
 	lr = float(args.l)
+	k_query = 1
 	imgsz = 224
-	
-	torch.manual_seed(66)
-	np.random.seed(66)
-	random.seed(66)
+
+	# torch.manual_seed(66)
+	# np.random.seed(66)
+	# random.seed(66)
 
 	net = NaiveRN(n_way, k_shot, imgsz).cuda()
 	print(net)
 	mdl_file = 'ckpt/naivern%d%d.mdl'%(n_way, k_shot)
-	print('mini-imagnet: %d-way %d-shot learning lr:%f' % (n_way, k_shot, lr))
+	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
 		net.load_state_dict(torch.load(mdl_file))
+	else:
+		print('training from scratch.')
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
@@ -56,11 +58,12 @@ if __name__ == '__main__':
 		                    batchsz=10000, resize=imgsz)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-		                        batchsz=300, resize=imgsz)
-		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=3, pin_memory=True)
+		                        batchsz=200, resize=imgsz)
+		db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=4, pin_memory=True)
 		total_train_loss = 0
 
 		for step, batch in enumerate(db):
+
 			# 1. test
 			total_val_loss = 0
 			if step % 300 == 0:
@@ -84,7 +87,7 @@ if __name__ == '__main__':
 					best_accuracy = accuracy
 					torch.save(net.state_dict(), mdl_file)
 					torch.save(net, mdl_file[:-4]+'.whl')
-					print('Saved to checkpoint and whole mdl! ', mdl_file)
+					print('Saved to checkpoint and whole mdl! ', mdl_file, mdl_file[:-4]+'.whl')
 
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 

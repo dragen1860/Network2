@@ -28,35 +28,37 @@ def main():
 	lr = float(args.l)
 
 	db = OmniglotNShot('dataset', batchsz=batchsz, n_way=n_way, k_shot=k_shot, k_query=k_query, imgsz=imgsz)
-	print('Omniglot %d-way %d-shot learning lr:%f' % (n_way, k_shot, lr))
+	print('Omniglot: no rotate!  %d-way %d-shot  lr:%f' % (n_way, k_shot, lr))
 	net = NaiveRN(n_way, k_shot, imgsz).cuda()
 	print(net)
 	mdl_file = 'ckpt/omni%d%d.mdl'%(n_way, k_shot)
+	whl_file = mdl_file[:-4]+'.whl'
 
 	if os.path.exists(mdl_file):
-		print('load checkpoint ...', mdl_file)
+		print('recover from state: ', mdl_file)
 		net.load_state_dict(torch.load(mdl_file))
+	else:
+		print('training from scratch.')
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
-	print('total params:', params)
+	print('Total params:', params)
 
 	input, input_y, query, query_y = db.get_batch('train')  # (batch, n_way*k_shot, img)
 	print('get batch:', input.shape, query.shape, input_y.shape, query_y.shape)
 
 	optimizer = optim.Adam(net.parameters(), lr=lr)
 	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=5, verbose=True)
-	tb = SummaryWriter('runs')
 
 	total_train_loss = 0
 	best_accuracy = 0
 	for step in range(100000000):
+
 		# 1. test
 		if step % 400 == 0:
 			total_correct = 0
 			total_num = 0
 			total_set_num = 0 # we only test 600 episodes in total
-			display_onebatch = False  # display one batch on tensorboard
 
 			while total_set_num < 300:
 				support_x, support_y, query_x, query_y = db.get_batch('test')
@@ -68,27 +70,18 @@ def main():
 
 				net.eval()
 				pred, correct = net(support_x, support_y, query_x, query_y, False)
+
 				total_correct += correct.data[0]
 				total_num += query_y.size(0) * query_y.size(1)
-
-
-				if not display_onebatch:
-					display_onebatch = True  # only display once
-					all_img, max_width = make_imgs(n_way, k_shot, k_query, support_x.size(0),
-					                               support_x, support_y, query_x, query_y, pred)
-					all_img = make_grid(all_img, nrow=max_width)
-					tb.add_image('result batch', all_img)
-
 				total_set_num += batchsz
 
 			accuracy = total_correct / total_num
 			if accuracy > best_accuracy:
 				best_accuracy = accuracy
 				torch.save(net.state_dict(), mdl_file)
-				torch.save(net, mdl_file[:-4]+'.whl')
-				print('Saved to checkpoint and whole mdl!', mdl_file)
+				torch.save(net, whl_file)
+				print('Saved to checkpoint and whole mdl!', mdl_file, whl_file)
 
-			tb.add_scalar('accuracy', accuracy)
 			print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
 			scheduler.step(accuracy)
@@ -111,7 +104,6 @@ def main():
 
 		# 3. print
 		if step % 20 == 0 and step != 0:
-			tb.add_scalar('loss', total_train_loss)
 			print('%d-way %d-shot %d batch> step:%d, loss:%f' % (
 				n_way, k_shot, batchsz, step, total_train_loss))
 			total_train_loss = 0
