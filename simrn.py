@@ -18,7 +18,6 @@ class SimRN(nn.Module):
 
 		self.repnet = nn.Sequential(repnet_sim(False), # (1024, 14, 14)
 		                            nn.AvgPool2d(3,2,padding=1),
-		                            # nn.Conv2d(1024, 256, kernel_size=5, stride=3),
 		                            nn.BatchNorm2d(64),
 		                            nn.ReLU(inplace=True))
 		# we need to know the feature dim, so here is a forwarding.
@@ -52,7 +51,7 @@ class SimRN(nn.Module):
 		                       nn.Linear(64, 1),
 		                       nn.Sigmoid())
 
-		coord = np.array([(2 * i / self.d - 1 , 2 * j / self.d - 1) for i in range(self.d) for j in range(self.d)])
+		coord = np.array([(i / self.d , j / self.d ) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
 		print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]

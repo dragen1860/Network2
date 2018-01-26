@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
 		for step, batch in enumerate(db):
 			# 1. test
-			if step % 300 == 0:
+			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard
