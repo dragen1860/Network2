@@ -31,7 +31,8 @@ class Naive(nn.Module):
 		                         nn.ReLU(inplace=True),
 		                         )
 		# Avg Pooling is better
-		self.downsample = nn.Sequential(nn.AvgPool2d(3,2))
+		self.downsample = nn.Sequential(nn.AvgPool2d(3,2)) # (64, 7, 7)
+		# self.downsample = nn.Sequential(nn.AvgPool2d(5,3)) # (64, 4, 4) for 20 way 5 shot
 
 	def forward(self, input):
 		input =  self.net(input)

@@ -14,20 +14,30 @@ if __name__ == '__main__':
 	from tensorboardX import SummaryWriter
 	from datetime import datetime
 	import random
+	import argparse
 
-	n_way = 5
-	k_shot = 1
-	k_query = 1 # query num per class
-	batchsz = 12
+
+	argparser = argparse.ArgumentParser()
+	argparser.add_argument('-n', help='n way')
+	argparser.add_argument('-k', help='k shot')
+	argparser.add_argument('-b', help='batch size')
+	argparser.add_argument('-l', help='learning rate', default=1e-3)
+	args = argparser.parse_args()
+	n_way = int(args.n)
+	k_shot = int(args.k)
+	k_query = 1
+	batchsz = int(args.b)
+	lr = float(args.l)
 	imgsz = 224
+	lr = 1e-3
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
-	# Multi-GPU support
-	print('To run on single GPU, change device_ids=[0] and downsize batch size! \nmkdir ckpt if not exists!')
-	net = torch.nn.DataParallel(NaiveRN(n_way, k_shot, imgsz), device_ids=[0]).cuda()
+
+	net = NaiveRN(n_way, k_shot, imgsz).cuda()
 	print(net)
 	mdl_file = 'ckpt/naivern%d%d.mdl'%(n_way, k_shot)
+	print('mini-imagnet: %d-way %d-shot learning lr:%f' % (n_way, k_shot, lr))
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
@@ -35,15 +45,13 @@ if __name__ == '__main__':
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
-	print('total params:', params)
+	print('Total params:', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=1e-3)
+	optimizer = optim.Adam(net.parameters(), lr=lr)
 	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=10, verbose=True)
-	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
 	for epoch in range(1000):
-
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
 		                    batchsz=10000, resize=imgsz)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
@@ -53,25 +61,12 @@ if __name__ == '__main__':
 		total_train_loss = 0
 
 		for step, batch in enumerate(db):
-			support_x = Variable(batch[0]).cuda()
-			support_y = Variable(batch[1]).cuda()
-			query_x = Variable(batch[2]).cuda()
-			query_y = Variable(batch[3]).cuda()
-
-			net.train()
-			loss = net(support_x, support_y, query_x, query_y)
-			loss = loss.mean() # Multi-GPU support
-			total_train_loss += loss.data[0]
-
-			optimizer.zero_grad()
-			loss.backward()
-			optimizer.step()
-
+			# 1. test
 			total_val_loss = 0
 			if step % 300 == 0:
 				total_correct = 0
 				total_num = 0
-				display_onebatch = False # display one batch on tensorboard
+
 				for j, batch_test in enumerate(db_val):
 					support_x = Variable(batch_test[0]).cuda()
 					support_y = Variable(batch_test[1]).cuda()
@@ -80,32 +75,37 @@ if __name__ == '__main__':
 
 					net.eval()
 					pred, correct = net(support_x, support_y, query_x, query_y, False)
-					correct = correct.sum() # multi-gpu support
 					total_correct += correct.data[0]
 					total_num += query_y.size(0) * query_y.size(1)
 
-					# print('.', end='')
-
-					if not display_onebatch:
-						display_onebatch = True  # only display once
-						all_img, max_width = make_imgs(n_way, k_shot, k_query, support_x.size(0),
-						                               support_x, support_y, query_x, query_y, pred)
-						all_img = make_grid(all_img, nrow=max_width)
-						tb.add_image('result batch', all_img)
 
 				accuracy = total_correct / total_num
 				if accuracy > best_accuracy :
 					best_accuracy = accuracy
 					torch.save(net.state_dict(), mdl_file)
-					print('Saved to checkpoint:', mdl_file)
+					torch.save(net, mdl_file[:-4]+'.whl')
+					print('Saved to checkpoint and whole mdl! ', mdl_file)
 
-				tb.add_scalar('accuracy', accuracy)
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
 				scheduler.step(accuracy)
 
+			# 2. train
+			support_x = Variable(batch[0]).cuda()
+			support_y = Variable(batch[1]).cuda()
+			query_x = Variable(batch[2]).cuda()
+			query_y = Variable(batch[3]).cuda()
+
+			net.train()
+			loss = net(support_x, support_y, query_x, query_y)
+			total_train_loss += loss.data[0]
+
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+
+			# 3. print
 			if step % 20 == 0 and step != 0:
-				tb.add_scalar('loss', total_train_loss)
 				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
 				n_way, k_shot, batchsz, epoch, step, total_train_loss) )
 				total_train_loss = 0

@@ -85,7 +85,7 @@ class NaiveRN(nn.Module):
 		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
-		# print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
+		print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
 
 
 

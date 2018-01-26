@@ -6,7 +6,7 @@ import numpy as np
 
 
 class OmniglotNShot():
-	def __init__(self, root, batchsz, n_way, k_shot, k_query):
+	def __init__(self, root, batchsz, n_way, k_shot, k_query, imgsz):
 		"""
 
 		:param dataroot:
@@ -15,7 +15,7 @@ class OmniglotNShot():
 		:param k_shot:
 		"""
 
-		self.resize = 84
+		self.resize = imgsz
 		if not os.path.isfile(os.path.join(root, 'omni.npy')):
 			# if root/data.npy does not exist, just download it
 			self.x = Omniglot(root, download=True,
