@@ -29,7 +29,7 @@ if __name__ == '__main__':
 	batchsz = int(args.b)
 	lr = float(args.l)
 	imgsz = 224
-	lr = 1e-3
+	
 	torch.manual_seed(66)
 	np.random.seed(66)
 	random.seed(66)
