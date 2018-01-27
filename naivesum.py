@@ -70,13 +70,13 @@ class NaiveSum(nn.Module):
 		                       nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
-		# 256 => 256
-		rn_dim = 256 # output dim of F network
-		self.f = nn.Sequential(nn.Linear(256, 256),
+		# 256 => 64
+		rn_dim = 64 # output dim of F network
+		self.f = nn.Sequential(nn.Linear(256, 128),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 256),
+		                       nn.Linear(128, 128),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, rn_dim),
+		                       nn.Linear(128, rn_dim),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True))
 
