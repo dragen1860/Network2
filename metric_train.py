@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
 
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('-n', help='n way', default=3)
+	argparser.add_argument('-n', help='n way', default=5)
 	argparser.add_argument('-k', help='k shot', default=1)
 	argparser.add_argument('-b', help='batch size', default=1)
 	argparser.add_argument('-l', help='learning rate', default=1e-3)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
-				scheduler.step(accuracy)
+				# scheduler.step(accuracy)
 
 			# 2. train
 			support_x = Variable(batch[0]).cuda()

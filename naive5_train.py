@@ -36,7 +36,8 @@ if __name__ == '__main__':
 
 	net = Naive5(n_way, k_shot, imgsz).cuda()
 	print(net)
-	mdl_file = 'ckpt/naive5-%d%d.mdl'%(n_way, k_shot)
+	print('naive5 is simple enseble on features, no ensemble on f output.')
+	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
 
 	if os.path.exists(mdl_file):
@@ -91,7 +92,7 @@ if __name__ == '__main__':
 
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
-				scheduler.step(accuracy)
+				# scheduler.step(accuracy)
 
 			# 2. train
 			support_x = Variable(batch[0]).cuda()

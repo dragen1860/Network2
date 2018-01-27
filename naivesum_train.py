@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
-				scheduler.step(accuracy)
+				# scheduler.step(accuracy)
 
 			# 2. train
 			support_x = Variable(batch[0]).cuda()
