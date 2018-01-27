@@ -88,8 +88,6 @@ class MiniImagenet(Dataset):
 		:param episodes: batch size
 		:return:
 		"""
-
-
 		self.support_x_batch = []  # support set batch
 		self.query_x_batch = []  # query set batch
 		for b in range(batchsz):  # for each batch
