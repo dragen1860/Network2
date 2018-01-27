@@ -12,7 +12,7 @@
 | Learning to Compare                 	| N         	| 99.6+-0.2%   	| 99.8+-0.1%    	| 97.6+-0.2%   	| 99.1+-0.1%    	|
 | Ours(Res18, flatten features, 2 fc) 	| Y         	| 98.99% ,48120ep, 20b            	|       99.6%,48620ep, 5b         	|    96.99%,153920ep,20b            	|   97.2%, 63220ep,2b         	|
 |naive, omni.py  | N | 99.6% | 99.8% |  98.88% |   |
-
+|naive, omni.py, 2days  | N | 99.80% | 100% |  98.88% |   |
 
 
 
@@ -43,8 +43,8 @@
 | MAML                                | Y         | 48.7%      | 63.11% | 16.49%     | 19.29% |
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
-| naivern.py      (naive version)                    |     N      | 53.8%     |	67.5%	| -    | - |
-| naivern.py      (naive version, avg pool, 9e-4)                    |     N      | 56.0%->60.8%, 2days     |	68.1%	| -    | - |
+| naivern.py      (naive version)     |     N      | 53.8%     |	67.5%	| -    | - |
+| naivern.py      (naive version, avg pool, 9e-4) |     N      | 56.0%->60.8%, 2days     |	68.1%	| -    | - |
 
 
 ## Simplified Deep version
@@ -58,7 +58,7 @@
 | Meta-SGD                            |           | 50.49%     | 64.03% | 17.56%     | 28.92% |
 | TCML                                |           | 55.71%     | 68.88% | -          | -      |
 | Learning to Compare           	  | N         | 57.02%     | 71.07% | -          | -      |
-| rn.py, 463bottleneck, 6x6, conv->maxpool                    |     N      | 53.3%     |		| -    | - |
+| rn.py, 463bottleneck, 6x6, conv->maxpool   |     N      | 53.3%     |		| -    | - |
 | simrn.py, 111basicneck                   |     N      | 55.4%     |	66.7%	| -    | - |
  
 

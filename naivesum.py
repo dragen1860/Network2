@@ -39,7 +39,8 @@ class Naive(nn.Module):
 
 class NaiveSum(nn.Module):
 	"""
-
+	Ensemble features after repnet and push to G & F network. the n-way output of F will be concated and then
+	push to O network.
 	"""
 	def __init__(self, n_way, k_shot, imgsz):
 		super(NaiveSum, self).__init__()
@@ -54,12 +55,11 @@ class NaiveSum(nn.Module):
 		repnet_sz = self.repnet(Variable(torch.rand(2, 3, imgsz, imgsz))).size()
 		self.c = repnet_sz[1]
 		self.d = repnet_sz[2]
-		# this is the input channels of layer4&layer5
-		self.inplanes = 2 * self.c
 		assert repnet_sz[2] == repnet_sz[3]
 		print('repnet sz:', repnet_sz)
 
 		# the input is self.c with two coordination information, and then combine each
+		# 2c+4 => 256
 		self.g = nn.Sequential(nn.Linear( (self.c + 2) * 2, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
@@ -67,18 +67,23 @@ class NaiveSum(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       nn.Dropout(),
+		                       nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
+		# 256 => 256
+		rn_dim = 256 # output dim of F network
 		self.f = nn.Sequential(nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 256),
+		                       nn.Linear(256, rn_dim),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True))
 
-		self.o = nn.Sequential(nn.Linear(256, 64),
+		# 256 => n-way
+		# we will cat output features of F network along n-way
+		self.o = nn.Sequential(nn.Linear(n_way * rn_dim, 64),
+		                       nn.BatchNorm1d(64),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(64, n_way))
 
@@ -91,7 +96,7 @@ class NaiveSum(nn.Module):
 
 
 
-	def forward(self, support_x, support_y, query_x, query_y, train=True):
+	def forward(self, support_x, support_y, query_x, query_y, train = True):
 		"""
 
 		:param support_x: [b, setsz, c_, h, w]
@@ -106,17 +111,18 @@ class NaiveSum(nn.Module):
 
 		# [b, setsz, c_, h, w] => [b*setsz, c_, h, w] => [b*setsz, c, d, d] => [b, setsz, c, d, d]
 		support_xf = self.repnet(support_x.view(batchsz * setsz, c_, h, w)).view(batchsz, setsz, c, d, d)
+		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
+		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
 
 		# sum over k_shot imgs to ensemble
 		# [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d], sum over k_shot dim
 		# => [b, n_way, c, d, d]
 		support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
+		# update setsz now
 		setsz = self.n_way
 		# [b, n_way*k_shot] => [b, n_way]
 		support_y = support_y[:, ::self.k_shot]
 
-		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
-		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
 
 		## now make the combination between two pairs
 		# include the coordinate information in each feature dim
@@ -144,41 +150,63 @@ class NaiveSum(nn.Module):
 		# push to F network
 		# [batchsz * querysz * setsz, -1] => [batchsz * querysz * setsz, -1] => [b, querysz, setsz, -1]
 		rn = self.f(x_f).view(batchsz, querysz, setsz, -1)
+
+		# push to O network
 		# [b, querysz, setsz, -1] => [b * querysz, setsz * dim_f_out]
+		# cat along feature/rn dim
 		rn = rn.view(batchsz * querysz, -1)
 		# [b*querysz, setsz*dim_f_out] => [b*querysz, prob] => [b, querysz, prob]
 		logits = self.o(rn).view(batchsz, querysz, self.n_way)
 
 		# build its label
-		# [4 4 4 4 4, 0,0,0,0,0, 1,1,1,1,1  3,3,3,3,3  2,2,2,2,2]
-		# [b, setsz] => [b, n_way], [4,0,1,3,2]
-		unique_y = support_y[:, ::self.k_shot]
-		# [b, querysz], [2, 3, 1, 0, 0, 2, 4, 4, 3, 1]
+		# logits: [b, querysz, n_way]
+		# [b, setsz] => [b, 1, setsz] => [b, querysz, setsz]
+		support_y_ = support_y.unsqueeze(1).expand(batchsz, querysz, setsz)
+		# [b, querysz] => [b, querysz, 1] => [b, querysz, setsz]
+		query_y_ = query_y.unsqueeze(2).expand(batchsz, querysz, setsz)
+		# [b, querysz, setsz] => [b*querysz, 3], while b*querysz is number of non-zero, and 3 is the dim of tensor
+		query_y_idx = torch.eq(support_y_, query_y_).nonzero()
+		# only retain the last index, => [b, querysz]
+		query_y_idx = (query_y_idx[...,-1]).contiguous().view(batchsz, querysz)
+		# print(support_y[0].cpu().data.numpy())
+		# print(query_y[0].cpu().data.numpy())
+		# print(query_y_idx[0].cpu().data.numpy())
 
 
 
-		# score: [b, querysz, setsz]
-		# label: [b, querysz, setsz]
+		# logits: [b, querysz, prob/n-way]
+		# query_y_idx: [b, querysz]
+		# query_y: [b, querysz]
+		# NOTICE: since use just the global true label for support_y and query_y, not relative label from 0 to n-way,
+		# we need to convert global true label to relative index
+		# for instance: support_y: [9..., 8..., 12..., 33..., 63...] query_y: [33, 63, 9, 12, 8]
+		# we get relative index: query_y_idx: [3, 4, 0, 2, 2]
 		if train:
-			loss = torch.pow(label - score, 2).sum() / batchsz
+
+			# APPROACH 1: euclidean loss
+			# [b, querysz, nway] => [b, querysz, n_way]
+			prob = F.sigmoid(logits)
+			# [b, querysz, n_way] scatter with [b, querysz, 1] => one hot [b, querysz, n-way]
+			query_y_idx_onehot = torch.zeros_like(prob).scatter_(2, query_y_idx.unsqueeze(2), 1).float()
+			# print('onehost', label[0].cpu().data.numpy())
+			# loss = self.criteon(score.view(batchsz * querysz, self.n_way), query_y_idx.view(-1))
+			loss = torch.pow(prob - query_y_idx_onehot, 2).sum() / batchsz
 			return loss
 
+
+			# # APPROACH 2: cross entropy loss
+			# # logits: [b, querysz, n-way]
+			# # query_y_idx: [b, querysz]
+			# loss = self.criteon(logits.view(batchsz * querysz, self.n_way), query_y_idx.view(-1)) * batchsz
+			# return loss
+
 		else:
-			# [b, querysz, setsz]
-			rn_score_np = score.cpu().data.numpy()
-			pred = []
-			# [b, setsz]
-			support_y_np = support_y.cpu().data.numpy()
-			for i, batch in enumerate(rn_score_np):
-				for j, query in enumerate(batch):
-					# query: [setsz]
-					sim = []  # [n_way]
-					for way in range(self.n_way):
-						sim.append(np.sum(query[way * self.k_shot: (way + 1) * self.k_shot]))
-					idx = np.array(sim).argmax()
-					pred.append(support_y_np[i, idx * self.k_shot])
-			# pred: [b, querysz]
-			pred = Variable(torch.from_numpy(np.array(pred).reshape((batchsz, querysz)))).cuda()
+			# [b, querysz, n-way] => [b, querysz]
+			_, indices = logits.max(dim=2)
+			# support_y: [b, querysz]
+			# indices: [b, querysz]
+			# pred: [b, querysz], global true label
+			pred = torch.gather(support_y, dim=1, index=indices)
 
 			correct = torch.eq(pred, query_y).sum()
 			return pred, correct

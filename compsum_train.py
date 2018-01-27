@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
 		for step, batch in enumerate(db):
 
-
+			# 1. test
 			total_val_loss = 0
 			if step % 200 == 0:
 				total_correct = 0
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 				tb.add_scalar('accuracy', accuracy)
 				print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
 
-
+			# 2. train
 			support_x = Variable(batch[0]).cuda()
 			support_y = Variable(batch[1]).cuda()
 			query_x = Variable(batch[2]).cuda()
@@ -91,6 +91,7 @@ if __name__ == '__main__':
 			loss.backward()
 			optimizer.step()
 
+			# 3. print
 			if step % 15 == 0 and step != 0:
 				tb.add_scalar('loss', loss.cpu().data[0])
 				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
