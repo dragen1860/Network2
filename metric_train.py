@@ -18,9 +18,9 @@ if __name__ == '__main__':
 
 
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('-n', help='n way')
-	argparser.add_argument('-k', help='k shot')
-	argparser.add_argument('-b', help='batch size')
+	argparser.add_argument('-n', help='n way', default=3)
+	argparser.add_argument('-k', help='k shot', default=1)
+	argparser.add_argument('-b', help='batch size', default=1)
 	argparser.add_argument('-l', help='learning rate', default=1e-3)
 	args = argparser.parse_args()
 	n_way = int(args.n)

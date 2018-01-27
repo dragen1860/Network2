@@ -142,7 +142,7 @@ class Metric(nn.Module):
 		x_f = x_f.view(batchsz * querysz * setsz, d*d * d*d, -1).sum(1) # the last dim can be derived by layer setting
 		# push to F network
 		# [batchsz * querysz * setsz, -1] => [batchsz * querysz * setsz, 1] => [b, querysz, setsz]
-		dist = self.f(x_f).view(batchsz, querysz, setsz, 1).squeeze(3)
+		dist = 1 - self.f(x_f).view(batchsz, querysz, setsz, 1).squeeze(3)
 
 		# build its label
 		# [b, setsz] => [b, 1, setsz] => [b, querysz, setsz]
@@ -164,17 +164,24 @@ class Metric(nn.Module):
 		if train:
 			# construct triplet loss.
 			# loss = sum{ max(dist(a,p) - min_n(dist(a,n)) + margin, 0) }
-			margin = 0.8
+			margin = 0.5
 			# min_n(dist(a,n))
 			# [b, querysz, setsz] * [b, querysz, setsz]
 			# global label: [1, 2, 3, 4, 5], current anchor label: 3
 			# label:        [1, 1, 0, 1, 1]
 			# eg:           [0.4, 0.3, 0.2, 0.8, 0.9] * [1, 1, 0, 1, 1] => [0.4, 0.3, 0, 0.8, 0.9]
 			# select the 2nd small element, since it's min_n(dist(a,n))
+
+			# # [b, querysz, setsz] => [b, querysz]
+			# # TODO: this is fixed in master, will be in the next release.
+			# min_neg, _ = torch.kthvalue(torch.mul(label, dist).cpu(), 2)
+			# min_neg = min_neg.cuda()
+
+			# sort [b, querysz, setsz] => [b, querysz, setsz]
+			min_neg, _ = torch.sort(torch.mul(label, dist), dim=2)
 			# [b, querysz, setsz] => [b, querysz]
-			# TODO: this is fixed in master, will be in the next release.
-			min_neg, _ = torch.kthvalue(torch.mul(label, dist).cpu(), 2)
-			min_neg = min_neg.cuda()
+			min_neg = min_neg[:, :, 1]
+
 			# now select dist(a,p)
 			# torch.where function exists only in torch v0.4, shit!
 			# [b, querysz, setsz] => [N, 3], the last column is positive index
