@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
-		net.load_state_dict(torch.load(mdl_file))
+		net.load_state_dict(torch.load(mdl_file), strict=False)
 	else:
 		print('training from scratch.')
 
