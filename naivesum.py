@@ -67,7 +67,7 @@ class NaiveSum(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       nn.BatchNorm1d(256),
+		                       # nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
 		# 256 => 64

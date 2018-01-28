@@ -66,7 +66,7 @@ class Metric(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       nn.BatchNorm1d(256),
+		                       # nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
 		# output distance between two pairs.
@@ -169,7 +169,7 @@ class Metric(nn.Module):
 			# [b, querysz, setsz] * [b, querysz, setsz]
 			# global label: [1, 2, 3, 4, 5], current anchor label: 3
 			# label:        [1, 1, 0, 1, 1]
-			# eg:           [0.4, 0.3, 0.2, 0.8, 0.9] * [1, 1, 0, 1, 1] => [0.4, 0.3, 0, 0.8, 0.9]
+			# dist:         [0.4, 0.3, 0.2, 0.8, 0.9] * [1, 1, 0, 1, 1] => [0.4, 0.3, 0, 0.8, 0.9]
 			# select the 2nd small element, since it's min_n(dist(a,n))
 
 			# # [b, querysz, setsz] => [b, querysz]

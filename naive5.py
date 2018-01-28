@@ -66,7 +66,7 @@ class Naive5(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       nn.BatchNorm1d(256),
+		                       # nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
 		self.f = nn.Sequential(nn.Linear(256, 256),

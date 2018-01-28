@@ -15,6 +15,7 @@ if __name__ == '__main__':
 	from datetime import datetime
 	import random
 	import argparse
+	from torch import  nn
 
 
 	argparser = argparse.ArgumentParser()
