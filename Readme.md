@@ -45,6 +45,8 @@
 | Learing to compare                          |     N      | 51.38%     |67.07%| -    | - |
 | naivern.py      (naive version)     |     N      | 53.8%     |	67.5%	| -    | - |
 | naivern.py      (naive version, avg pool, 9e-4) |     N      | 56.0%->60.8%, 2days     |	68.1%	| -    | - |
+| naive5.py      (naive version, avg pool, sum over features) |     N      |      |	72.7| -    | - |
+| naivesum.py      (naive version, avg pool, sum over features, concat all setsz after f) |     N      |      |	70.8| -    | - |
 
 
 ## Simplified Deep version
@@ -69,3 +71,7 @@
 * avg pooling
 * sum on feature can not converge
 * g network can enlarge since it have more batch
+* spatial d is very critical, small d lead to faster converge, however, when it read 50%, it read the roof. Large `d` will converge slow but 
+have higher possibilityes.
+* reduce Naive 4 conv to 3 conv will not improve performance(55.7%), and reduce d of spatial rn will not improve as well().
+* add BatchNorm1d in self.g is extremely slow, will cost 3x time compared with none BN.
