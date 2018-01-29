@@ -66,17 +66,16 @@ class Metric(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       # nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
 		# output distance between two pairs.
-		self.f = nn.Sequential(nn.Linear(256, 256),
+		self.f = nn.Sequential(nn.BatchNorm1d(256),
+								nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 64),
-		                       nn.BatchNorm1d(64),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(64, 1),
 		                       nn.Sigmoid())
@@ -108,13 +107,13 @@ class Metric(nn.Module):
 		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
 		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
 
-		# sum over k_shot imgs' features to ensemble
-		# [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d] => [b, n_way, c, d, d], sum over k_shot dim
-		support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
-		# update setsz now
-		setsz = self.n_way
-		# [b, n_way*k_shot] => [b, n_way]
-		support_y = support_y[:, ::self.k_shot]
+		# # sum over k_shot imgs' features to ensemble
+		# # [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d] => [b, n_way, c, d, d], sum over k_shot dim
+		# support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
+		# # update setsz now
+		# setsz = self.n_way
+		# # [b, n_way*k_shot] => [b, n_way]
+		# support_y = support_y[:, ::self.k_shot]
 
 
 		## now make the combination between two pairs
@@ -142,7 +141,7 @@ class Metric(nn.Module):
 		x_f = x_f.view(batchsz * querysz * setsz, d*d * d*d, -1).sum(1) # the last dim can be derived by layer setting
 		# push to F network
 		# [batchsz * querysz * setsz, -1] => [batchsz * querysz * setsz, 1] => [b, querysz, setsz]
-		dist = 1 - self.f(x_f).view(batchsz, querysz, setsz, 1).squeeze(3)
+		dist = 1 - self.f(x_f).view(batchsz, querysz, setsz)
 
 		# build its label
 		# [b, setsz] => [b, 1, setsz] => [b, querysz, setsz]
@@ -163,8 +162,8 @@ class Metric(nn.Module):
 		# label: [b, querysz, setsz]
 		if train:
 			# construct triplet loss.
-			# loss = sum{ max(dist(a,p) - min_n(dist(a,n)) + margin, 0) }
-			margin = 0.5
+			# loss = sum{ max(dist(a,p) - min_neg(dist(a,n)) + margin, 0) }
+			margin = 0.2
 			# min_n(dist(a,n))
 			# [b, querysz, setsz] * [b, querysz, setsz]
 			# global label: [1, 2, 3, 4, 5], current anchor label: 3
@@ -173,13 +172,12 @@ class Metric(nn.Module):
 			# select the 2nd small element, since it's min_n(dist(a,n))
 
 			# # [b, querysz, setsz] => [b, querysz]
-			# # TODO: this is fixed in master, will be in the next release.
 			# min_neg, _ = torch.kthvalue(torch.mul(label, dist).cpu(), 2)
 			# min_neg = min_neg.cuda()
 
 			# sort [b, querysz, setsz] => [b, querysz, setsz]
 			min_neg, _ = torch.sort(torch.mul(label, dist), dim=2)
-			# [b, querysz, setsz] => [b, querysz]
+			# [b, querysz, setsz] => [b, querysz], get the 2nd small element
 			min_neg = min_neg[:, :, 1]
 
 			# now select dist(a,p)
@@ -195,6 +193,10 @@ class Metric(nn.Module):
 			# we use relu function to replace max(x, 0) operation
 			# => [b, querysz] => scalar
 			loss = F.relu(dist_ap - min_neg + margin).sum() / batchsz
+			if np.random.randint(100)<3:
+				print('y:', support_y[0].cpu().data.numpy(), query_y[0].cpu().data.numpy())
+				print('ap vs an:', dist_ap[0].cpu().data.numpy(), min_neg[0].cpu().data.numpy())
+				print('dist:', dist[0].cpu().data.numpy())
 			return loss
 
 		else:
