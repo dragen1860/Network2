@@ -53,6 +53,7 @@ def evaluation(net, batchsz, episodesz = 600):
 		for query_x_mini, query_y_mini in zip(query_x_b, query_y_b):
 			# print('query_x_mini', query_x_mini.size(), 'query_y_mini', query_y_mini.size())
 			pred, correct = net(support_x, support_y, query_x_mini.contiguous(), query_y_mini, False)
+			correct = correct.sum()
 			# pred: [b, nway]
 			preds.append(pred)
 			total_correct += correct.data[0]
@@ -111,7 +112,7 @@ if __name__ == '__main__':
 	random.seed(66)
 
 
-	net = Naive5(n_way, k_shot, imgsz).cuda()
+	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0,1,2]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
