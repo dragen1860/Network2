@@ -137,8 +137,10 @@ if __name__ == '__main__':
 
 		for step, batch in enumerate(db):
 			# 1. test
-			if step % 300 == 0:
-				accuracy, sem = evaluation(net, batchsz, episodesz=600)
+			if step % 400 == 0:
+				accuracy, sem = evaluation(net, batchsz, episodesz=200)
+				if accuracy > 0.7:
+					accuracy, sem = evaluation(net, batchsz, episodesz=600)
 				scheduler.step(accuracy)
 
 			# 2. train
