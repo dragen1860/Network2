@@ -138,7 +138,6 @@ if __name__ == '__main__':
 		for step, batch in enumerate(db):
 
 			# 1. test
-			total_val_loss = 0
 			if step % 300 == 0:
 				accuracy, sem = evaluation(net, batchsz, episodesz=100)
 				if accuracy > 0.59:

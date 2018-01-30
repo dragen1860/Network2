@@ -42,10 +42,11 @@ class MiniImagenet(Dataset):
 		self.querysz = self.n_way * self.k_query  # number of samples per set for evaluation
 		self.resize = resize  # resize to
 		self.startidx = startidx  # index label not from 0, but from startidx
-		print('shuffle DB:%s, b:%d, %d-way, %d-shot, %d-query, resize:%d' % (mode, batchsz, n_way, k_shot, k_query, resize))
+		print('shuffle DB :%s, b:%d, %d-way, %d-shot, %d-query, resize:%d' % (mode, batchsz, n_way, k_shot, k_query, resize))
 
 		self.transform = transforms.Compose([lambda x: Image.open(x).convert('RGB'),
 			                                     transforms.Resize((self.resize, self.resize)),
+		                                         # transforms.RandomHorizontalFlip(),
 			                                     transforms.ToTensor(),
 			                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 			                                     ])
@@ -150,6 +151,25 @@ class MiniImagenet(Dataset):
 	def __len__(self):
 		# as we have built up to batchsz of sets, you can sample some small batch size of sets.
 		return self.batchsz
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
