@@ -74,10 +74,10 @@ class Naive5(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 256),
-		                       nn.BatchNorm1d(256),
+		                       nn.Linear(256, (self.c + 2) * 2),
+		                       nn.BatchNorm1d((self.c + 2) * 2),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 1),
+		                       nn.Linear((self.c + 2) * 2, 1),
 		                       nn.Sigmoid())
 
 

@@ -44,9 +44,16 @@ class MiniImagenet(Dataset):
 		self.startidx = startidx  # index label not from 0, but from startidx
 		print('shuffle DB :%s, b:%d, %d-way, %d-shot, %d-query, resize:%d' % (mode, batchsz, n_way, k_shot, k_query, resize))
 
-		self.transform = transforms.Compose([lambda x: Image.open(x).convert('RGB'),
+		if mode == 'train':
+			self.transform = transforms.Compose([lambda x: Image.open(x).convert('RGB'),
 			                                     transforms.Resize((self.resize, self.resize)),
-		                                         # transforms.RandomHorizontalFlip(),
+		                                         transforms.RandomHorizontalFlip(),
+			                                     transforms.ToTensor(),
+			                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+			                                     ])
+		else:
+			self.transform = transforms.Compose([lambda x: Image.open(x).convert('RGB'),
+			                                     transforms.Resize((self.resize, self.resize)),
 			                                     transforms.ToTensor(),
 			                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 			                                     ])

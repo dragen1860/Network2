@@ -4,7 +4,6 @@ from torch import optim
 from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
-from repnet import repnet_deep, Bottleneck
 
 
 class Naive(nn.Module):
@@ -158,21 +157,12 @@ class NaiveRN(nn.Module):
 			return loss
 
 		else:
-			# [b, querysz, setsz]
-			rn_score_np = score.cpu().data.numpy()
-			pred = []
-			# [b, setsz]
-			support_y_np = support_y.cpu().data.numpy()
-			for i, batch in enumerate(rn_score_np):
-				for j, query in enumerate(batch):
-					# query: [setsz]
-					sim = []  # [n_way]
-					for way in range(self.n_way):
-						sim.append(np.sum(query[way * self.k_shot: (way + 1) * self.k_shot]))
-					idx = np.array(sim).argmax()
-					pred.append(support_y_np[i, idx * self.k_shot])
-			# pred: [b, querysz]
-			pred = Variable(torch.from_numpy(np.array(pred).reshape((batchsz, querysz)))).cuda()
+			# [b, querysz, setsz] => [b, querysz]
+			_, indices = score.max(dim = 2)
+			# support_y: [b, setsz], setsz = n-way
+			# indices: [b, querysz]
+			# pred: [b, querysz], global true label
+			pred = torch.gather(support_y, dim=1, index=indices)
 
 			correct = torch.eq(pred, query_y).sum()
 			return pred, correct
