@@ -4,8 +4,14 @@ from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
 from naive5 import Naive5
-from utils import make_imgs
-import sys, scipy.stats, select
+import scipy.stats
+from torch.utils.data import DataLoader
+from torch.optim import lr_scheduler
+import random, sys
+import argparse
+from torch import  nn
+
+
 
 def mean_confidence_interval(accs, confidence = 0.95):
     n = accs.shape[0]
@@ -14,8 +20,9 @@ def mean_confidence_interval(accs, confidence = 0.95):
     return m, h
 
 
+# save best acc info, to save the best model to ckpt.
 best_accuracy = 0
-def evaluation(net, batchsz, episodesz = 600):
+def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
 	"""
 	obey the expriment setting of MAML and Learning2Compare, we randomly sample 600 episodes and 15 query images per query
 	set.
@@ -25,10 +32,11 @@ def evaluation(net, batchsz, episodesz = 600):
 	"""
 	k_query = 15
 	mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-	                        batchsz=episodesz, resize=imgsz)
+	                        batchsz=600, resize=imgsz)
 	db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=6, pin_memory=True)
 
 	accs = []
+	episode_num = 0
 
 	for batch_test in db_val:
 		# [60, setsz, c_, h, w]
@@ -53,7 +61,7 @@ def evaluation(net, batchsz, episodesz = 600):
 		for query_x_mini, query_y_mini in zip(query_x_b, query_y_b):
 			# print('query_x_mini', query_x_mini.size(), 'query_y_mini', query_y_mini.size())
 			pred, correct = net(support_x, support_y, query_x_mini.contiguous(), query_y_mini, False)
-			correct = correct.sum()
+			correct = correct.sum() # multi-gpu
 			# pred: [b, nway]
 			preds.append(pred)
 			total_correct += correct.data[0]
@@ -61,11 +69,24 @@ def evaluation(net, batchsz, episodesz = 600):
 		# # 15 * [b, nway] => [b, 15*nway]
 		# preds = torch.cat(preds, dim= 1)
 		acc = total_correct / total_num
-		print('%.3f,'%acc, end=' ')
+		print('%.4f,'%acc, end=' ')
 		sys.stdout.flush()
 		accs.append(acc)
 
-	# compute the distribution of 600 episodes acc.
+		# update tested episode number
+		episode_num += query_y.size(0)
+		if episode_num > episodesz:
+			# test current tested episodes acc.
+			acc = np.array(accs).mean()
+			if acc >= threhold:
+				# if current acc is very high, we conduct all 600 episodes testing.
+				continue
+			else:
+				# current acc is low, just conduct `episodesz` num of episodes.
+				break
+
+
+	# compute the distribution of 600/episodesz episodes acc.
 	global best_accuracy
 	accs = np.array(accs)
 	accuracy, sem = mean_confidence_interval(accs)
@@ -75,21 +96,12 @@ def evaluation(net, batchsz, episodesz = 600):
 	if accuracy > best_accuracy:
 		best_accuracy = accuracy
 		torch.save(net.state_dict(), mdl_file)
-		torch.save(net, whl_file)
-		print('Saved to checkpoint and whole mdl! ', mdl_file, whl_file)
+		print('Saved to checkpoint:', mdl_file)
 
 	return accuracy, sem
 
 
-if __name__ == '__main__':
-	from MiniImagenet import MiniImagenet
-	from torch.utils.data import DataLoader
-	from torch.optim import lr_scheduler
-	import random, sys
-	import argparse
-	from torch import  nn
-
-
+def main():
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-n', help='n way')
 	argparser.add_argument('-k', help='k shot')
@@ -103,8 +115,8 @@ if __name__ == '__main__':
 	lr = float(args.l)
 	k_query = 1
 	imgsz = 224
+	threhold = 0.7 if n_way==5 else 0.59 # threshold for when to test full version of episode
 	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
-	whl_file = 'ckpt/naive5%d%d.whl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
 
 	torch.manual_seed(66)
@@ -138,10 +150,9 @@ if __name__ == '__main__':
 
 		for step, batch in enumerate(db):
 			# 1. test
-			if step % 400 == 0:
-				accuracy, sem = evaluation(net, batchsz, episodesz=200)
-				if accuracy > 0.7:
-					accuracy, sem = evaluation(net, batchsz, episodesz=600)
+			if step % 300 == 0:
+				# evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 100, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train
@@ -152,6 +163,7 @@ if __name__ == '__main__':
 
 			net.train()
 			loss = net(support_x, support_y, query_x, query_y)
+			loss = loss.sum() / support_x.size(0) # multi-gpu, divide by total batchsz
 			total_train_loss += loss.data[0]
 
 			optimizer.zero_grad()
@@ -163,3 +175,8 @@ if __name__ == '__main__':
 				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
 				n_way, k_shot, batchsz, epoch, step, total_train_loss) )
 				total_train_loss = 0
+
+
+
+if __name__ == '__main__':
+	main()

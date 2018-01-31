@@ -39,7 +39,8 @@ class Naive(nn.Module):
 
 class Naive5(nn.Module):
 	"""
-	Different from naivesum, which do more complex ensemble work. here we just sum over features after repnet.
+	Different from naivesum, which do more complex ensemble work.
+	Here we just sum over features after repnet.
 	"""
 	def __init__(self, n_way, k_shot, imgsz):
 		super(Naive5, self).__init__()
@@ -66,7 +67,6 @@ class Naive5(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.ReLU(inplace=True),
 		                       nn.Linear(256, 256),
-		                       # nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True))
 
 		self.f = nn.Sequential(nn.Linear(256, 256),
@@ -81,10 +81,10 @@ class Naive5(nn.Module):
 		                       nn.Sigmoid())
 
 
-		coord = np.array([(i / self.d , j / self.d) for i in range(self.d) for j in range(self.d)])
+		coord = np.array([(2 * i / self.d -1, 2 * j / self.d - 1) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
-		# print('self.coord:', self.coord.size(),self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
+		print('self.coord:', self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]
 
 
 
@@ -132,7 +132,7 @@ class Naive5(nn.Module):
 		comb = torch.cat([support_xf, query_xf], dim=3)
 
 		# [b, querysz, setsz, c*2, d*d:0, d*d:1] => [b, querysz, setsz, d*d:1, d*d:0, c*2] => [b, querysz, setsz, d*d:0, d*d:1, c*2]
-		comb = comb.transpose(3, 5).contiguous().view(batchsz * querysz * setsz * d*d * d*d, c * 2)
+		comb = comb.transpose(3, 5).transpose(3, 4).contiguous().view(batchsz * querysz * setsz * d*d * d*d, c * 2)
 		# push to G network
 		# [b*querysz*setsz*d^4, 2c] => [b*querysz*setsz*d^4, -1/256]
 		x_f = self.g(comb)
@@ -154,13 +154,13 @@ class Naive5(nn.Module):
 		# score: [b, querysz, setsz]
 		# label: [b, querysz, setsz]
 		if train:
-			loss = torch.pow(label - score, 2).sum() / batchsz
+			loss = torch.pow(label - score, 2).sum()
 			return loss
 
 		else:
 			# [b, querysz, setsz] => [b, querysz]
-			_, indices = score.max(dim=2)
-			# support_y: [b, querysz]
+			_, indices = score.max(dim = 2)
+			# support_y: [b, setsz], setsz = n-way
 			# indices: [b, querysz]
 			# pred: [b, querysz], global true label
 			pred = torch.gather(support_y, dim=1, index=indices)

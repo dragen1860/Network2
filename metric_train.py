@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
 
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('-n', help='n way', default=5)
+	argparser.add_argument('-n', help='n way', default=3)
 	argparser.add_argument('-k', help='k shot', default=1)
 	argparser.add_argument('-b', help='batch size', default=1)
 	argparser.add_argument('-l', help='learning rate', default=1e-3)
@@ -30,9 +30,9 @@ if __name__ == '__main__':
 	k_query = 1
 	imgsz = 224
 
-	torch.manual_seed(66)
-	np.random.seed(66)
-	random.seed(66)
+	# torch.manual_seed(66)
+	# np.random.seed(66)
+	# random.seed(66)
 
 	net = Metric(n_way, k_shot, imgsz).cuda()
 	print(net)
