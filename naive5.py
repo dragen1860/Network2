@@ -56,7 +56,7 @@ class Naive5(nn.Module):
 		self.c = repnet_sz[1]
 		self.d = repnet_sz[2]
 		assert repnet_sz[2] == repnet_sz[3]
-		print('repnet sz:', repnet_sz)
+		print('Repnet sz:', repnet_sz)
 
 		# the input is self.c with two coordination information, and then combine each
 		# 2c+4 => 256
@@ -74,14 +74,14 @@ class Naive5(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, 64),
-		                       nn.BatchNorm1d(64),
+		                       nn.Linear(256, 256),
+		                       nn.BatchNorm1d(256),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(64, 1),
+		                       nn.Linear(256, 1),
 		                       nn.Sigmoid())
 
 
-		coord = np.array([(2 * i / self.d -1, 2 * j / self.d - 1) for i in range(self.d) for j in range(self.d)])
+		coord = np.array([(i / self.d, j / self.d) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
 		print('self.coord:', self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]

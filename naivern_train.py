@@ -14,8 +14,10 @@ def mean_confidence_interval(accs, confidence = 0.95):
     return m, h
 
 
+
+# save best acc info, to save the best model to ckpt.
 best_accuracy = 0
-def evaluation(net, batchsz, episodesz = 600):
+def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
 	"""
 	obey the expriment setting of MAML and Learning2Compare, we randomly sample 600 episodes and 15 query images per query
 	set.
@@ -25,10 +27,11 @@ def evaluation(net, batchsz, episodesz = 600):
 	"""
 	k_query = 15
 	mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
-	                        batchsz=episodesz, resize=imgsz)
-	db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=6, pin_memory=True)
+	                        batchsz=600, resize=imgsz)
+	db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=2, pin_memory=True)
 
 	accs = []
+	episode_num = 0 # record tested num of episodes
 
 	for batch_test in db_val:
 		# [60, setsz, c_, h, w]
@@ -53,7 +56,7 @@ def evaluation(net, batchsz, episodesz = 600):
 		for query_x_mini, query_y_mini in zip(query_x_b, query_y_b):
 			# print('query_x_mini', query_x_mini.size(), 'query_y_mini', query_y_mini.size())
 			pred, correct = net(support_x, support_y, query_x_mini.contiguous(), query_y_mini, False)
-			correct = correct.sum()
+			correct = correct.sum() # multi-gpu
 			# pred: [b, nway]
 			preds.append(pred)
 			total_correct += correct.data[0]
@@ -61,22 +64,34 @@ def evaluation(net, batchsz, episodesz = 600):
 		# # 15 * [b, nway] => [b, 15*nway]
 		# preds = torch.cat(preds, dim= 1)
 		acc = total_correct / total_num
-		print('%.3f,'%acc, end=' ')
+		print('%.5f,'%acc, end=' ')
 		sys.stdout.flush()
 		accs.append(acc)
 
-	# compute the distribution of 600 episodes acc.
+		# update tested episode number
+		episode_num += query_y.size(0)
+		if episode_num > episodesz:
+			# test current tested episodes acc.
+			acc = np.array(accs).mean()
+			if acc >= threhold:
+				# if current acc is very high, we conduct all 600 episodes testing.
+				continue
+			else:
+				# current acc is low, just conduct `episodesz` num of episodes.
+				break
+
+
+	# compute the distribution of 600/episodesz episodes acc.
 	global best_accuracy
 	accs = np.array(accs)
 	accuracy, sem = mean_confidence_interval(accs)
 	print('\naccuracy:', accuracy, 'sem:', sem)
-	print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
+	print('<<<<<<<<< accuracy:', accuracy, 'best accuracy:', best_accuracy, '>>>>>>>>')
 
 	if accuracy > best_accuracy:
 		best_accuracy = accuracy
 		torch.save(net.state_dict(), mdl_file)
-		torch.save(net, whl_file)
-		print('Saved to checkpoint and whole mdl! ', mdl_file, whl_file)
+		print('Saved to checkpoint:', mdl_file)
 
 	return accuracy, sem
 
@@ -111,9 +126,9 @@ if __name__ == '__main__':
 
 	net = nn.DataParallel(NaiveRN(n_way, k_shot, imgsz), device_ids= [0]).cuda()
 	print(net)
-	mdl_file = 'ckpt/naivern%d%d.mdl'%(n_way, k_shot)
-	whl_file = 'ckpt/naivern%d%d.whl'%(n_way, k_shot)
-	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
+	threhold = 0.7 if k_shot==5 else 0.59 # threshold for when to test full version of episode
+	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
+	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
 	if os.path.exists(mdl_file):
 		print('load checkpoint ...', mdl_file)
@@ -139,9 +154,7 @@ if __name__ == '__main__':
 
 			# 1. test
 			if step % 300 == 0:
-				accuracy, sem = evaluation(net, batchsz, episodesz=100)
-				if accuracy > 0.59:
-					accuracy, sem = evaluation(net, batchsz, episodesz=600)
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 100, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train

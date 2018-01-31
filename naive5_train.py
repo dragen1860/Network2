@@ -33,10 +33,10 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 	k_query = 15
 	mini_val = MiniImagenet('../mini-imagenet/', mode='test', n_way=n_way, k_shot=k_shot, k_query=k_query,
 	                        batchsz=600, resize=imgsz)
-	db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=6, pin_memory=True)
+	db_val = DataLoader(mini_val, batchsz, shuffle=True, num_workers=2, pin_memory=True)
 
 	accs = []
-	episode_num = 0
+	episode_num = 0 # record tested num of episodes
 
 	for batch_test in db_val:
 		# [60, setsz, c_, h, w]
@@ -69,7 +69,7 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 		# # 15 * [b, nway] => [b, 15*nway]
 		# preds = torch.cat(preds, dim= 1)
 		acc = total_correct / total_num
-		print('%.4f,'%acc, end=' ')
+		print('%.5f,'%acc, end=' ')
 		sys.stdout.flush()
 		accs.append(acc)
 
@@ -91,7 +91,7 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 	accs = np.array(accs)
 	accuracy, sem = mean_confidence_interval(accs)
 	print('\naccuracy:', accuracy, 'sem:', sem)
-	print('<<<<>>>>accuracy:', accuracy, 'best accuracy:', best_accuracy)
+	print('<<<<<<<<< accuracy:', accuracy, 'best accuracy:', best_accuracy, '>>>>>>>>')
 
 	if accuracy > best_accuracy:
 		best_accuracy = accuracy
@@ -107,24 +107,24 @@ def main():
 	argparser.add_argument('-k', help='k shot')
 	argparser.add_argument('-b', help='batch size')
 	argparser.add_argument('-l', help='learning rate', default=1e-3)
-	argparser.add_argument('--test', help='test only', action='store_true')
 	args = argparser.parse_args()
 	n_way = int(args.n)
 	k_shot = int(args.k)
 	batchsz = int(args.b)
 	lr = float(args.l)
+
 	k_query = 1
 	imgsz = 224
-	threhold = 0.7 if n_way==5 else 0.59 # threshold for when to test full version of episode
+	threhold = 0.7 if k_shot==5 else 0.59 # threshold for when to test full version of episode
 	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
-	print('mini-imagnet: %d-way %d-shot lr:%f' % (n_way, k_shot, lr))
+	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
-	torch.manual_seed(66)
-	np.random.seed(66)
-	random.seed(66)
+	# torch.manual_seed(66)
+	# np.random.seed(66)
+	# random.seed(66)
 
 
-	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0,1,2]).cuda()
+	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
@@ -140,6 +140,7 @@ def main():
 
 	# build optimizer and lr scheduler
 	optimizer = optim.Adam(net.parameters(), lr=lr)
+	# optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=True)
 	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=20, verbose=True)
 
 	for epoch in range(1000):
