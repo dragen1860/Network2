@@ -19,7 +19,7 @@ class CompDeep(nn.Module):
 		self.k_shot = k_shot
 
 		# self.repnet = Naive()
-		self.repnet = nn.Sequential(repnet_deep(False), nn.AvgPool2d(5,1))
+		self.repnet = nn.Sequential(repnet_deep(False), nn.AvgPool2d(3,3,padding=1))
 
 		# we need to know the feature dim, so here is a forwarding.
 		# => [64, 10, 10]
@@ -53,7 +53,7 @@ class CompDeep(nn.Module):
 		                       nn.Sigmoid())
 
 
-		coord = np.array([(i / self.d, j / self.d) for i in range(self.d) for j in range(self.d)])
+		coord = np.array([( (i  - 2) / 2, (j  - 2) / 2 ) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
 		print('self.coord:', self.coord) # [batchsz:1, setsz:1, 2, self.d, self.d]

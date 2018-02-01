@@ -153,7 +153,7 @@ def main():
 			# 1. test
 			if step % 300 == 0:
 				# evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
-				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 100, threhold, mdl_file)
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 50, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train
