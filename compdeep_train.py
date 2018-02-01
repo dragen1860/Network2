@@ -124,7 +124,7 @@ def main():
 	# random.seed(66)
 
 
-	net = nn.DataParallel(CompDeep(n_way, k_shot, imgsz), device_ids=[0]).cuda()
+	net = nn.DataParallel(CompDeep(n_way, k_shot, imgsz), device_ids=[0,1,2,3]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):

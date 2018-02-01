@@ -44,7 +44,7 @@ class BasicBlock(nn.Module):
 
 
 class Bottleneck(nn.Module):
-	expansion = 4
+	expansion = 1
 
 	def __init__(self, inplanes, planes, stride=1, downsample=None):
 		super(Bottleneck, self).__init__()
@@ -53,8 +53,8 @@ class Bottleneck(nn.Module):
 		self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
 		                       padding=1, bias=False)
 		self.bn2 = nn.BatchNorm2d(planes)
-		self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-		self.bn3 = nn.BatchNorm2d(planes * 4)
+		self.conv3 = nn.Conv2d(planes, planes * 1, kernel_size=1, bias=False) # 4 -> 1
+		self.bn3 = nn.BatchNorm2d(planes * 1) # 4->1
 		self.relu = nn.ReLU(inplace=True)
 		self.downsample = downsample
 		self.stride = stride
@@ -92,8 +92,8 @@ class ResNet(nn.Module):
 		self.relu = nn.Sigmoid()
 		self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 		self.layer1 = self._make_layer(block, 64, layers[0])
-		self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-		self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
+		self.layer2 = self._make_layer(block, 64, layers[1], stride=2)
+		self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
 
 		for m in self.modules():
 			if isinstance(m, nn.Conv2d):
