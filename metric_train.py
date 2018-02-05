@@ -115,7 +115,7 @@ def main():
 
 	k_query = 1
 	imgsz = 224
-	threhold = 0.7 if k_shot==5 else 0.59 # threshold for when to test full version of episode
+	threhold = 0.699 if k_shot==5 else 0.584 # threshold for when to test full version of episode
 	mdl_file = 'ckpt/metric%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
@@ -141,7 +141,7 @@ def main():
 	# build optimizer and lr scheduler
 	optimizer = optim.Adam(net.parameters(), lr=lr)
 	# optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9, nesterov=True)
-	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=20, verbose=True)
+	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=25, verbose=True)
 
 	for epoch in range(1000):
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
@@ -153,7 +153,7 @@ def main():
 			# 1. test
 			if step % 300 == 0:
 				# evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
-				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 100, threhold, mdl_file)
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, epoch * 10, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train

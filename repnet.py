@@ -44,7 +44,7 @@ class BasicBlock(nn.Module):
 
 
 class Bottleneck(nn.Module):
-	expansion = 1
+	expansion = 1 # 4=>1
 
 	def __init__(self, inplanes, planes, stride=1, downsample=None):
 		super(Bottleneck, self).__init__()

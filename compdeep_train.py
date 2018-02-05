@@ -173,8 +173,8 @@ def main():
 
 			# 3. print
 			if step % 20 == 0 and step != 0:
-				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
-				n_way, k_shot, batchsz, epoch, step, total_train_loss) )
+				print('%d-way %d-shot %d batch> epoch:%d episode:%d, loss:%f' % (
+				n_way, k_shot, batchsz, epoch, step * batchsz, total_train_loss) )
 				total_train_loss = 0
 
 

@@ -86,7 +86,8 @@ class Metric(nn.Module):
 
 
 	def squash(self, input_tensor):
-		"""Applies norm nonlinearity (squash) to a capsule layer.
+		"""
+		Applies norm nonlinearity (squash) to a capsule layer.
 		input: [b, querysz, setsz]
 		Returns: [b, querysz, setsz]
 		  A tensor with same shape as input (rank 3) for output of this layer.
@@ -197,7 +198,7 @@ class Metric(nn.Module):
 			# it force score_an < score_ap with a small margin, otherwise will create a loss
 			loss = F.relu(score_an - score_ap + margin).sum()
 
-			if np.random.randint(100) < 1:
+			if np.random.randint(1000) < 1:
 				# [b, querysz, setsz-1]
 				tmp = torch.cat([(score_ap[..., 0]).unsqueeze(2), score_an], dim=2)
 				print(tmp[0].cpu().data.numpy())

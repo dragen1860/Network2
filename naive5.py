@@ -22,22 +22,20 @@ class Naive(nn.Module):
 		                         nn.ReLU(inplace=True),
 
 		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.AvgPool2d(kernel_size=2),
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 
 		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.AvgPool2d(kernel_size=2),
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 		                         )
 		# Avg Pooling is better
-		# self.downsample = nn.Sequential(nn.AvgPool2d(5,5))
+		self.downsample = nn.Sequential(nn.AvgPool2d(5,5))
 
 	def forward(self, x):
 		x =  self.net(x)
-		return x
-		# return self.downsample(x)
+		# return x
+		return self.downsample(x)
 
 
 class Naive5(nn.Module):
@@ -77,10 +75,10 @@ class Naive5(nn.Module):
 		                       nn.Linear(256, 256),
 		                       nn.Dropout(),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear(256, (self.c + 2) * 2),
-		                       nn.BatchNorm1d((self.c + 2) * 2),
+		                       nn.Linear(256, 64),
+		                       nn.BatchNorm1d(64),
 		                       nn.ReLU(inplace=True),
-		                       nn.Linear((self.c + 2) * 2, 1),
+		                       nn.Linear(64, 1),
 		                       nn.Sigmoid())
 
 

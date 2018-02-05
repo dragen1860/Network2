@@ -104,13 +104,13 @@ class NaiveRN(nn.Module):
 		# [b, setsz, c_, h, w] => [b*setsz, c_, h, w] => [b*setsz, c, d, d] => [b, setsz, c, d, d]
 		support_xf = self.repnet(support_x.view(batchsz * setsz, c_, h, w)).view(batchsz, setsz, c, d, d)
 
-		# # sum over k_shot imgs to ensemble
-		# # [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d], sum over k_shot dim
-		# # => [b, n_way, c, d, d]
-		# support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
-		# setsz = self.n_way
-		# # [b, n_way*k_shot] => [b, n_way]
-		# support_y = support_y[:, ::self.k_shot]
+		# sum over k_shot imgs to ensemble
+		# [b, setsz, c, d, d] => [b, n_way, k_shot, c, d, d], sum over k_shot dim
+		# => [b, n_way, c, d, d]
+		support_xf = support_xf.view(batchsz, self.n_way, self.k_shot, c, d, d).sum(2)
+		setsz = self.n_way
+		# [b, n_way*k_shot] => [b, n_way]
+		support_y = support_y[:, ::self.k_shot]
 
 		# [b, querysz, c_, h, w] => [b*querysz, c_, h, w] => [b*querysz, c, d, d] => [b, querysz, c, d, d]
 		query_xf = self.repnet(query_x.view(batchsz * querysz, c_, h, w)).view(batchsz, querysz, c, d, d)
@@ -153,7 +153,7 @@ class NaiveRN(nn.Module):
 		# score: [b, querysz, setsz]
 		# label: [b, querysz, setsz]
 		if train:
-			loss = torch.pow(label - score, 2).sum() / batchsz
+			loss = torch.pow(label - score, 2).sum()
 			return loss
 
 		else:

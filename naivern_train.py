@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
 	net = nn.DataParallel(NaiveRN(n_way, k_shot, imgsz), device_ids= [0]).cuda()
 	print(net)
-	threhold = 0.7 if k_shot==5 else 0.59 # threshold for when to test full version of episode
+	threhold = 0.699 if k_shot==5 else 0.584 # threshold for when to test full version of episode
 	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 	print('Total params:', params)
 
 	optimizer = optim.Adam(net.parameters(), lr=lr)
-	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=20, verbose=True)
+	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=25, verbose=True)
 
 	best_accuracy = 0
 	for epoch in range(1000):
@@ -154,7 +154,7 @@ if __name__ == '__main__':
 
 			# 1. test
 			if step % 300 == 0:
-				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 100, threhold, mdl_file)
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, epoch * 10, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train
@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
 			net.train()
 			loss = net(support_x, support_y, query_x, query_y)
-			loss = loss.mean()
+			loss = loss.sum() / support_y.size(0)
 			total_train_loss += loss.data[0]
 
 			optimizer.zero_grad()
