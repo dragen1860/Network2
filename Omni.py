@@ -38,13 +38,11 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 	episode_num = 0 # record tested num of episodes
 
 	for i in range(600//batchsz):
-		# [60, setsz, c_, h, w]
-		# setsz = (5 + 15) * 5
-		batch_test = db.get_batch('test')
-		support_x = Variable(batch_test[0]).cuda()
-		support_y = Variable(batch_test[1]).cuda()
-		query_x = Variable(batch_test[2]).cuda()
-		query_y = Variable(batch_test[3]).cuda()
+		support_x, support_y, query_x, query_y = db.get_batch('test')
+		support_x = Variable(torch.from_numpy(support_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
+		query_x = Variable(torch.from_numpy(query_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
+		support_y = Variable(torch.from_numpy(support_y).int()).cuda()
+		query_y = Variable(torch.from_numpy(query_y).int()).cuda()
 
 		# we will split query set into 15 splits.
 		# query_x : [batch, 15*way, c_, h, w]
