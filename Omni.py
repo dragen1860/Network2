@@ -1,13 +1,9 @@
 import torch, os
 from torch import optim
 from torch.autograd import Variable
-from tensorboardX import SummaryWriter
 import numpy as np
-import torchvision
 from Omni_NaiveRN import NaiveRN
 from omniglotNShot import OmniglotNShot
-from torchvision.utils import make_grid
-from utils import make_imgs
 from torch.optim import lr_scheduler
 import argparse
 
@@ -37,7 +33,7 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 	accs = []
 	episode_num = 0 # record tested num of episodes
 
-	for i in range(600//batchsz):
+	for i in range( 600 // batchsz):
 		support_x, support_y, query_x, query_y = db.get_batch('test')
 		support_x = Variable(torch.from_numpy(support_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
 		query_x = Variable(torch.from_numpy(query_x).float().transpose(2, 4).transpose(3, 4).repeat(1, 1, 3, 1, 1)).cuda()
@@ -120,7 +116,6 @@ def main():
 	net = NaiveRN(n_way, k_shot, imgsz).cuda()
 	print(net)
 	mdl_file = 'ckpt/omni%d%d.mdl'%(n_way, k_shot)
-	whl_file = mdl_file[:-4]+'.whl'
 
 	if os.path.exists(mdl_file):
 		print('recover from state: ', mdl_file)
@@ -143,7 +138,7 @@ def main():
 
 		# 1. test
 		if step % 400 == 0:
-			accuracy, _ = evaluation(net, batchsz, n_way, k_shot, imgsz, 300, threshold, mdl_file)
+			accuracy, _ = 0,0 # evaluation(net, batchsz, n_way, k_shot, imgsz, 300, threshold, mdl_file)
 			scheduler.step(accuracy)
 
 
