@@ -28,7 +28,7 @@ class Cub(Dataset):
 	class_attribute_labels_continuous['classAttributes'].shape= (200, 312)
 
 	"""
-	def __init__(self, root, n_way, k_query, train = True, episode_num = 1000):
+	def __init__(self, root, n_way, k_query, train = True, episode_num = 1000, imgsz = 299):
 		"""
 		Actually, the image here act as query role. we want to find the closed attribute item for each image.
 		:param root:
@@ -43,35 +43,47 @@ class Cub(Dataset):
 		self.n_way = n_way
 		self.k_query = k_query
 		self.episode_num = episode_num
+		self.train = train
+		print('train?', train, '%d-way,'%n_way, '%d-query,'%k_query, '%d-episodes'%episode_num)
 
-		# load mat file.
-		self.image_class_labels = io.loadmat(os.path.join(root, 'image_class_labels.mat'))
-		self.image_class_labels = self.image_class_labels['imageClassLabels'][:, 1]
-		self.image_class_labels = self.image_class_labels.reshape(11788)
-		# print('>>image_class_labels:', self.image_class_labels.shape)
+		self.img_label = io.loadmat(os.path.join(root, 'image_class_labels.mat'))
+		# [1, 1], [2, 1]
+		self.img_label = self.img_label['imageClassLabels'][:, 1]
+		self.img_label = self.img_label.reshape(11788)
+		self.img_label -= 1
+		# print('>>img_label:', self.img_label.shape)
 
-		self.images = io.loadmat(os.path.join(root, 'images.mat'))
-		self.images = self.images['images'][0, 1]
-		self.images = np.array(self.images.tolist()).squeeze(2).squeeze(1).reshape(11788)
-		# flatten [path1, path2, ....]
-		# print('>>images:', self.images.shape)
+		self.img = io.loadmat(os.path.join(root, 'images.mat'))
+		# ([1~11788], [img1, img2])
+		self.img = self.img['images'][0, 1]
+		self.img = np.array(self.img.tolist()).squeeze().reshape(11788)
+		# print('>>img:', self.img.shape)
 
-		images_by_cls = []
+		img_by_cls = []
 		for i in range(200):
-			num = self.images[np.equal(self.image_class_labels, i + 1)]
-			images_by_cls.append(num)
-		# gatheredb by same label: [[label1_img1, label1_img2,...], [label2_img1, label2_img2,...], ...]
+			current_img = self.img[np.equal(self.img_label, i)]
+			img_by_cls.append(current_img)
+		# gathere db by same label: [[label1_img1, label1_img2,...], [label2_img1, label2_img2,...], ...]
 		# each class has different num of imgs, here we use a list to save it.
-		self.images_by_cls = images_by_cls[:150] if train else images_by_cls[150:]
-		# print('>>img group by cls:', len(self.images_by_cls))
+		# can not shuffle!
+		self.img_by_cls = img_by_cls[:150] if train else img_by_cls[150:]
+		# print('>>img by cls:', len(self.img_by_cls))
 
-		self.class_attributes = io.loadmat(os.path.join(root, 'class_attribute_labels_continuous.mat'))
-		self.class_attributes = self.class_attributes['classAttributes'].reshape(200, 312).astype(np.float32)
-		self.class_attributes = self.class_attributes[:150] if train else self.class_attributes[150:]
-		# print('>>class_attributes:', self.class_attributes.shape)
+		self.att = io.loadmat(os.path.join(root, 'class_attribute_labels_continuous.mat'))
+		self.att = self.att['classAttributes'].reshape(200, 312).astype(np.float32)
+		# can NOT shuffle
+		self.att = self.att[:150] if train else self.att[150:]
+		# print('>>att:', self.att.shape)
+
+		# NOTICE:
+		# img_cls is order by label and att is order by label as well
+		# img_cls: [150/50, img_num]
+		# att: [150/50, 312]
+		# we don't need label since they are corresponding to each other and we can treat the index as label.
+
 
 		self.transform = transforms.Compose([lambda x: Image.open(x).convert('RGB'),
-		                                     transforms.Resize((299, 299)),
+		                                     transforms.Resize((imgsz, imgsz)),
 		                                     transforms.ToTensor(),
 		                                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 		                                     ])
@@ -79,18 +91,20 @@ class Cub(Dataset):
 	def __getitem__(self, item):
 
 		# randomly sample n-way classes from train/test set
-		# [5, 29, 39, 1, 129...]
-		selected_cls_label = np.random.choice(range(len(self.images_by_cls)), self.n_way, False)
+		# [n_way]
+		selected_cls_idx = np.random.choice(range(len(self.img_by_cls)), self.n_way, False)
+
 		# select all imgs for the selected categories, its a list.
+		# [n_way, img_num]
 		# [[5_img1, 5_img2,...], [29_img1, 29_img2,...],...]
-		selected_img_by_cls = [self.images_by_cls[i] for i in selected_cls_label]
+		selected_img_by_cls = [self.img_by_cls[i] for i in selected_cls_idx]
 		# only sample one for each category, [[5_img1, 5_img2], [29_img1, 29_img2], ....]
 		# [n_way, k_query]
 		selected_imgs = [np.random.choice(imgs, self.k_query, False) for imgs in selected_img_by_cls]
 
 		# select attributes for each class
 		# [n_way, 312]
-		selected_atts = self.class_attributes[selected_cls_label]
+		selected_atts = self.att[selected_cls_idx]
 
 
 		# [n_way, k_query] => [setsz=n_way*k_query]
@@ -102,19 +116,21 @@ class Cub(Dataset):
 		for img in selected_imgs:
 			x.append(self.transform(img))
 		x = torch.stack(x)
+
 		att = torch.from_numpy(selected_atts)
-		att_label = torch.from_numpy(selected_cls_label)
+		att_label = torch.from_numpy(selected_cls_idx)
+
 		# [n_way] => [n_way, 1] => [n_way, k_query] => [n_way*k_query]
 		x_label = att_label.clone().unsqueeze(1).repeat(1, self.k_query).view(-1)
 
 
 		# shuffle
-		shuffle_idx = torch.randperm(self.n_way * self.k_query)
-		x = x[shuffle_idx]
-		x_label = x_label[shuffle_idx]
+		# shuffle_idx = torch.randperm(self.n_way * self.k_query)
+		# x = x[shuffle_idx]
+		# x_label = x_label[shuffle_idx]
 
 
-		# print('selected_imgs', np.array(selected_imgs)[shuffle_idx][:5])
+		# print('\nselected_imgs', selected_imgs)
 		# print('imgs:', x.size())
 		# print('attrs:', att.size(), att[:5])
 		# print('att label:', att_label.numpy())
@@ -133,9 +149,9 @@ class Cub(Dataset):
 
 
 def test():
-	db = Cub('../CUB_200_2011_ZL/', 50, 2, train=False)
+	db = Cub('../CUB_200_2011_ZL/', 5, 2, train=False)
 
-	db_loader = DataLoader(db, 2, True, num_workers=2, pin_memory=True)
+	db_loader = DataLoader(db, 1, True, num_workers=1, pin_memory=True)
 
 	iter(db_loader).next()
 

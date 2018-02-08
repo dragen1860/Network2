@@ -23,10 +23,10 @@ class Zeroshot(nn.Module):
 		assert repnet_sz[2] == repnet_sz[3]
 		print('Repnet sz:', repnet_sz)
 
-		self.att_dim = 514
-		self.attnet = nn.Sequential(nn.Linear(312, 512),
+		self.att_dim = 312
+		self.attnet = nn.Sequential(nn.Linear(312, 312),
 		                            nn.ReLU(inplace=True),
-		                            nn.Linear(512, self.att_dim),
+		                            nn.Linear(312, self.att_dim),
 		                            nn.ReLU(inplace=True))
 
 
@@ -57,7 +57,7 @@ class Zeroshot(nn.Module):
 		coord = np.array([(i / self.d, j / self.d) for i in range(self.d) for j in range(self.d)])
 		self.coord = torch.from_numpy(coord).float().view(self.d, self.d, 2).transpose(0, 2).transpose(1,2).contiguous()
 		self.coord = self.coord.unsqueeze(0).unsqueeze(0)
-		# print('self.coord:', self.coord) # [batchsz:1, n_way:1, 2, self.d, self.d]
+		print('self.coord:', self.coord) # [batchsz:1, n_way:1, 2, self.d, self.d]
 
 
 
@@ -120,7 +120,7 @@ class Zeroshot(nn.Module):
 		# score: [b, setsz, n_way]
 		# label: [b, setsz, n_way]
 		if train:
-			loss = torch.pow(label - score, 2).sum()
+			loss = torch.pow(label - score, 2).sum() / (batchsz * setsz)
 			return loss
 
 		else:

@@ -13,7 +13,7 @@ from cub import Cub
 
 # save best acc info, to save the best model to ckpt.
 best_accuracy = 0
-def evaluation(net, batchsz, n_way, mdl_file):
+def evaluation(net, n_way, k_query, mdl_file):
 	"""
 	obey the expriment setting of MAML and Learning2Compare, we randomly sample 600 episodes and 15 query images per query
 	set.
@@ -22,9 +22,8 @@ def evaluation(net, batchsz, n_way, mdl_file):
 	:return:
 	"""
 	# we need to test 11788 - 8855 = 2933 images.
-	k_query = 1
-	db = Cub('../CUB_200_2011_ZL/', n_way, k_query, train=False, episode_num= 3000//n_way//k_query//batchsz)
-	db_loader = DataLoader(db, batchsz, shuffle=True, num_workers=2, pin_memory=True)
+	db = Cub('../CUB_200_2011_ZL/', n_way, k_query, train=False, episode_num= 3000//n_way//k_query)
+	db_loader = DataLoader(db, 1, shuffle=True, num_workers=1, pin_memory=True)
 
 	accs = []
 	for batch in db_loader:
@@ -41,10 +40,14 @@ def evaluation(net, batchsz, n_way, mdl_file):
 		acc = correct / ( x_label.size(0) * x_label.size(1) )
 		accs.append(acc)
 
+		# if np.random.randint(10)<1:
+		# 	print(pred[0].cpu().data.numpy(), att_label[0].cpu().data.numpy())
+	print(accs)
+
 	# compute the distribution of 600/episodesz episodes acc.
 	global best_accuracy
 	accuracy = np.array(accs).mean()
-	print('<<<<<<<<< accuracy:', accuracy, 'best accuracy:', best_accuracy, '>>>>>>>>')
+	print('<<<<<<<<< %d way accuracy:'%n_way, accuracy, 'best accuracy:', best_accuracy, '>>>>>>>>')
 
 	if accuracy > best_accuracy:
 		best_accuracy = accuracy
@@ -60,15 +63,11 @@ def main():
 	batchsz = 1
 	n_way = 50
 	k_query = 1
-	lr = 1e-4
+	lr = 1e-3
 	mdl_file = 'ckpt/cub.mdl'
 
-	# torch.manual_seed(66)
-	# np.random.seed(66)
-	# random.seed(66)
 
-
-	net = Zeroshot(n_way).cuda()
+	net = nn.DataParallel(Zeroshot(n_way), device_ids=[0]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
@@ -78,20 +77,11 @@ def main():
 		print('training from scratch.')
 
 	# whole parameters number
-	ignored_params = list(map(id, net.repnet.parameters()))
-	base_params = filter(lambda p: id(p) not in ignored_params, net.parameters())
-
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
 	params = sum([np.prod(p.size()) for p in model_parameters])
-	grad_params = sum([np.prod(p.size()) for p in base_params])
-	print('Total params:', params, 'grad params:', grad_params)
+	print('Total params  :', params)
 
-	optimizer = torch.optim.SGD([
-		{'params': base_params},
-		{'params': net.repnet.parameters(), 'lr': 1e-6}
-	], lr=lr, momentum=0.9)
-
-	# optimizer = optim.Adam([net.attnet.parameters(), net.f.parameters(), net.g.parameters()], lr=lr)
+	optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-3)
 	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=25, verbose=True)
 
 	for epoch in range(1000):
@@ -102,8 +92,8 @@ def main():
 		for step, batch in enumerate(db_loader):
 
 			# 1. test
-			if step % 200 == 0:
-				accuracy = evaluation(net, batchsz, n_way, mdl_file)
+			if step % 300 == 0:
+				accuracy = evaluation(net, n_way, k_query, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train
@@ -114,17 +104,21 @@ def main():
 
 			net.train()
 			loss = net(x, x_label, att, att_label)
-			loss = loss.sum() / (x_label.size(0) * x_label.size(1) ) # multi-gpu, divide by total batchsz
+			loss = loss.sum()
 			total_train_loss += loss.data[0]
 
 			optimizer.zero_grad()
 			loss.backward()
+			# if np.random.randint(1000)<2:
+			# 	for p in net.parameters():
+			# 		print(p.grad.norm(2).data[0])
+			nn.utils.clip_grad_norm(net.parameters(), 1)
 			optimizer.step()
 
 			# 3. print
 			if step % 20 == 0 and step != 0:
 				print('%d-way %d batch> epoch:%d step:%d, loss:%f' % (
-				n_way,  batchsz, epoch, step, total_train_loss) )
+				n_way,  batchsz, epoch, step, loss.data[0]) )
 				total_train_loss = 0
 
 

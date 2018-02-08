@@ -11,26 +11,32 @@ class Naive(nn.Module):
 	def __init__(self):
 		super(Naive, self).__init__()
 
-		self.net = nn.Sequential(nn.Conv2d(3, 64, kernel_size=3),
-		                         nn.MaxPool2d(kernel_size=2),
+		self.net = nn.Sequential(nn.Conv2d(3, 64, kernel_size=3),   #64x82x82,  64x222x222
+		                         nn.MaxPool2d(kernel_size=2),       # 64x41x41, 64x111x111
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 
-		                         nn.Conv2d(64, 64, kernel_size=3),
-		                         nn.MaxPool2d(kernel_size=2),
+		                         nn.Conv2d(64, 64, kernel_size=3),  #64x39x39,  64x109x109
+		                         nn.MaxPool2d(kernel_size=2),       #64x19x19,  64x54x54
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 
-		                         nn.Conv2d(64, 64, kernel_size=3),
+		                         nn.Conv2d(64, 64, kernel_size=3),  #64x17x17,  64x52x52
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 
-		                         nn.Conv2d(64, 64, kernel_size=3),
+		                         nn.Conv2d(64, 64, kernel_size=3),  #64x15x15,  64x50x50
 		                         nn.BatchNorm2d(64),
 		                         nn.ReLU(inplace=True),
 		                         )
 		# Avg Pooling is better
 		self.downsample = nn.Sequential(nn.AvgPool2d(5,5))
+		# for mini-imagenet:
+		# 64x50x50  by AvgPool(5,5) => 64x10x10
+		# for 5way1shot, 5way5shot, 20way1shot Omniglot
+		# 64x15x15  by AvgPool(3,2) => 64x7x7
+		# for 20way5shot Omniglot
+		# 64x15x15  by AvgPool(5,3) => 64x4x4
 
 	def forward(self, input):
 		input =  self.net(input)
