@@ -154,17 +154,15 @@ class Naive5(nn.Module):
 
 		# score: [b, querysz, setsz]
 		# label: [b, querysz, setsz]
-		if train:
-			loss = torch.pow(label - score, 2).sum()
-			return loss
 
-		else:
-			# [b, querysz, setsz] => [b, querysz]
-			_, indices = score.max(dim = 2)
-			# support_y: [b, setsz], setsz = n-way
-			# indices: [b, querysz]
-			# pred: [b, querysz], global true label
-			pred = torch.gather(support_y, dim=1, index=indices)
+		loss = torch.pow(label - score, 2).sum()
 
-			correct = torch.eq(pred, query_y).sum()
-			return pred, correct
+		# [b, querysz, setsz] => [b, querysz]
+		_, indices = score.max(dim = 2)
+		# support_y: [b, setsz], setsz = n-way
+		# indices: [b, querysz]
+		# pred: [b, querysz], global true label
+		pred = torch.gather(support_y, dim=1, index=indices)
+
+		correct = torch.eq(pred, query_y).sum()
+		return loss, pred, correct

@@ -7,10 +7,21 @@ from naive5 import Naive5
 import scipy.stats
 from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
-import random, sys
+import random, sys, pickle
 import argparse
 from torch import  nn
 
+
+global_train_acc_buff = 0
+global_train_loss_buff = 0
+global_test_acc_buff = 0
+global_test_loss_buff = 0
+global_buff = []
+
+def write2file(n_way, k_shot):
+        global_buff.append([global_train_loss_buff, global_train_acc_buff, global_test_loss_buff, global_test_acc_buff])
+        with open("mini%d%d.pkl"%(n_way, k_shot), "wb") as fp:
+                pickle.dump(global_buff, fp)
 
 
 def mean_confidence_interval(accs, confidence = 0.95):
@@ -58,14 +69,19 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 		# we don't need the total acc on 600 episodes, but we need the acc per sets of 15*nway setsz.
 		total_correct = 0
 		total_num = 0
+		total_loss = 0
 		for query_x_mini, query_y_mini in zip(query_x_b, query_y_b):
 			# print('query_x_mini', query_x_mini.size(), 'query_y_mini', query_y_mini.size())
-			pred, correct = net(support_x, support_y, query_x_mini.contiguous(), query_y_mini, False)
+			loss, pred, correct = net(support_x, support_y, query_x_mini.contiguous(), query_y_mini, False)
 			correct = correct.sum() # multi-gpu
 			# pred: [b, nway]
 			preds.append(pred)
 			total_correct += correct.data[0]
 			total_num += query_y_mini.size(0) * query_y_mini.size(1)
+
+			total_loss += loss.data[0]
+
+
 		# # 15 * [b, nway] => [b, 15*nway]
 		# preds = torch.cat(preds, dim= 1)
 		acc = total_correct / total_num
@@ -98,6 +114,15 @@ def evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file
 		torch.save(net.state_dict(), mdl_file)
 		print('Saved to checkpoint:', mdl_file)
 
+	# we only take the last one batch as avg_loss
+	total_loss = total_loss / n_way / k_query
+
+	global global_test_loss_buff, global_test_acc_buff
+	global_test_loss_buff = total_loss
+	global_test_acc_buff = accuracy
+	write2file(n_way, k_shot)
+
+
 	return accuracy, sem
 
 
@@ -119,10 +144,10 @@ def main():
 	mdl_file = 'ckpt/naive5%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
-	# torch.manual_seed(66)
-	# np.random.seed(66)
-	# random.seed(66)
-
+	global global_buff
+	if os.path.exists('mini%d%d.pkl' % (n_way, k_shot)):
+		global_buff = pickle.load(open('mini%d%d.pkl' % (n_way, k_shot), 'rb'))
+		print('load pkl buff:', len(global_buff))
 
 	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0]).cuda()
 	print(net)
@@ -148,6 +173,8 @@ def main():
 		                    batchsz=10000, resize=imgsz)
 		db = DataLoader(mini, batchsz, shuffle=True, num_workers=8, pin_memory=True)
 		total_train_loss = 0
+		total_train_correct = 0
+		total_train_num = 0
 
 		for step, batch in enumerate(db):
 			# 1. test
@@ -163,9 +190,11 @@ def main():
 			query_y = Variable(batch[3]).cuda()
 
 			net.train()
-			loss = net(support_x, support_y, query_x, query_y)
+			loss, pred, correct = net(support_x, support_y, query_x, query_y)
 			loss = loss.sum() / support_x.size(0) # multi-gpu, divide by total batchsz
 			total_train_loss += loss.data[0]
+			total_train_correct += correct.data[0]
+			total_train_num += support_y.size(0) * n_way # k_query = 1
 
 			optimizer.zero_grad()
 			loss.backward()
@@ -173,10 +202,19 @@ def main():
 
 			# 3. print
 			if step % 20 == 0 and step != 0:
-				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%f' % (
-				n_way, k_shot, batchsz, epoch, step, total_train_loss) )
+				acc = total_train_correct / total_train_num
+				total_train_correct = 0
+				total_train_num = 0
+
+
+				print('%d-way %d-shot %d batch> epoch:%d step:%d, loss:%.4f, train acc:%.4f' % (
+				n_way, k_shot, batchsz, epoch, step, total_train_loss, acc) )
 				total_train_loss = 0
 
+				global global_train_loss_buff, global_train_acc_buff
+				global_train_loss_buff = loss.data[0] / (n_way * k_shot)
+				global_train_acc_buff = acc
+				write2file(n_way, k_shot)
 
 
 if __name__ == '__main__':

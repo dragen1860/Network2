@@ -28,7 +28,7 @@ class Cub(Dataset):
 	class_attribute_labels_continuous['classAttributes'].shape= (200, 312)
 
 	"""
-	def __init__(self, root, n_way, k_query, train = True, episode_num = 1000, imgsz = 299):
+	def __init__(self, root, n_way, k_query, train = True, episode_num = 1000, imgsz = 224):
 		"""
 		Actually, the image here act as query role. we want to find the closed attribute item for each image.
 		:param root:
@@ -58,6 +58,16 @@ class Cub(Dataset):
 		self.img = self.img['images'][0, 1]
 		self.img = np.array(self.img.tolist()).squeeze().reshape(11788)
 		# print('>>img:', self.img.shape)
+
+
+
+		self.imgdata = io.loadmat(os.path.join(root, 'cnn_feat-imagenet-vgg-verydeep-19.mat'))
+		# ([1~11788], [img1, img2])
+		self.imgdata = self.imgdata['cnn_feat'].swapaxes(0,1)
+		print('cnn_feat-imagenet-vgg-verydeep-19:', self.imgdata.shape)
+
+		# self.imgdata = np.load(open(os.path.join(root, 'features_res34_512.npy'), 'rb'))
+		# print('features_res34_512:', self.imgdata.shape)
 
 		img_by_cls = []
 		for i in range(200):
@@ -111,11 +121,17 @@ class Cub(Dataset):
 		selected_imgs = np.array(selected_imgs).reshape(-1)
 
 		# convert relative path to global path to read img by PIL
-		selected_imgs = [os.path.join(self.root,'images', path) for path in selected_imgs]
+		# selected_imgs = [os.path.join(self.root,'images', path) for path in selected_imgs]
 		x = []
 		for img in selected_imgs:
-			x.append(self.transform(img))
-		x = torch.stack(x)
+			# find the index in self.img which match current filename
+			idx = np.where(self.img == img)[0][0]
+			# 1280x8x8
+			imgdata = self.imgdata[idx]
+			x.append(imgdata)
+		# Nx1280x8x8
+		x = np.array(x).astype(np.float32)
+		x = torch.from_numpy(x)
 
 		att = torch.from_numpy(selected_atts)
 		att_label = torch.from_numpy(selected_cls_idx)
@@ -125,9 +141,9 @@ class Cub(Dataset):
 
 
 		# shuffle
-		# shuffle_idx = torch.randperm(self.n_way * self.k_query)
-		# x = x[shuffle_idx]
-		# x_label = x_label[shuffle_idx]
+		shuffle_idx = torch.randperm(self.n_way * self.k_query)
+		x = x[shuffle_idx]
+		x_label = x_label[shuffle_idx]
 
 
 		# print('\nselected_imgs', selected_imgs)

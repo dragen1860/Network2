@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
 from torch import  nn
 
-from zeroshot import Zeroshot
+from zeroshot_sim import Zeroshot
 from cub import Cub
 
 
@@ -62,12 +62,12 @@ def main():
 
 	batchsz = 1
 	n_way = 50
-	k_query = 1
-	lr = 1e-3
+	k_query = 10
+	lr = 1e-5
 	mdl_file = 'ckpt/cub.mdl'
 
 
-	net = nn.DataParallel(Zeroshot(n_way), device_ids=[0]).cuda()
+	net = Zeroshot(n_way).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
@@ -81,8 +81,7 @@ def main():
 	params = sum([np.prod(p.size()) for p in model_parameters])
 	print('Total params  :', params)
 
-	optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-3)
-	scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', factor=0.5, patience=25, verbose=True)
+	optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-5)
 
 	for epoch in range(1000):
 		db = Cub('../CUB_200_2011_ZL/', n_way, k_query, train=True)
@@ -94,7 +93,6 @@ def main():
 			# 1. test
 			if step % 300 == 0:
 				accuracy = evaluation(net, n_way, k_query, mdl_file)
-				scheduler.step(accuracy)
 
 			# 2. train
 			x = Variable(batch[0]).cuda()
@@ -104,7 +102,6 @@ def main():
 
 			net.train()
 			loss = net(x, x_label, att, att_label)
-			loss = loss.sum()
 			total_train_loss += loss.data[0]
 
 			optimizer.zero_grad()
@@ -112,7 +109,7 @@ def main():
 			# if np.random.randint(1000)<2:
 			# 	for p in net.parameters():
 			# 		print(p.grad.norm(2).data[0])
-			nn.utils.clip_grad_norm(net.parameters(), 1)
+			nn.utils.clip_grad_norm(net.parameters(), 10)
 			optimizer.step()
 
 			# 3. print
