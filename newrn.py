@@ -30,21 +30,21 @@ class Naive(nn.Module):
 		                         nn.ReLU(inplace=True),
 		                         )
 		# Avg Pooling is better
-		self.downsample = nn.Sequential(nn.AvgPool2d(25, 25, padding=0))
+		self.downsample = nn.Sequential(nn.AvgPool2d(3,2, padding=1))
 
 	def forward(self, x):
 		x =  self.net(x)
-		# print(x.size())
+		# return x
 		return self.downsample(x)
 
 
-class Naive5(nn.Module):
+class NewRN(nn.Module):
 	"""
 	Different from naivesum, which do more complex ensemble work.
 	Here we just sum over features after repnet.
 	"""
 	def __init__(self, n_way, k_shot, imgsz):
-		super(Naive5, self).__init__()
+		super(NewRN, self).__init__()
 
 		self.n_way = n_way
 		self.k_shot = k_shot

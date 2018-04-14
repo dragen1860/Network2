@@ -3,7 +3,7 @@ import numpy as np
 from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
-from naive5 import Naive5
+from newrn import NewRN
 import scipy.stats
 from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
@@ -139,9 +139,9 @@ def main():
 	lr = float(args.l)
 
 	k_query = 1
-	imgsz = 224
+	imgsz = 84
 	threhold = 0.699 if k_shot==5 else 0.584 # threshold for when to test full version of episode
-	mdl_file = 'ckpt/naive5_2x2%d%d.mdl'%(n_way, k_shot)
+	mdl_file = 'ckpt/newrn%d%d.mdl'%(n_way, k_shot)
 	print('mini-imagnet: %d-way %d-shot lr:%f, threshold:%f' % (n_way, k_shot, lr, threhold))
 
 	global global_buff
@@ -149,7 +149,7 @@ def main():
 		global_buff = pickle.load(open('mini%d%d.pkl' % (n_way, k_shot), 'rb'))
 		print('load pkl buff:', len(global_buff))
 
-	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0, 1, 2]).cuda()
+	net = nn.DataParallel(NewRN(n_way, k_shot, imgsz), device_ids=[0, 1, 2]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
@@ -180,7 +180,7 @@ def main():
 			# 1. test
 			if step % 300 == 0:
 				# evaluation(net, batchsz, n_way, k_shot, imgsz, episodesz, threhold, mdl_file):
-				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, epoch * 10, threhold, mdl_file)
+				accuracy, sem = evaluation(net, batchsz, n_way, k_shot, imgsz, 200, threhold, mdl_file)
 				scheduler.step(accuracy)
 
 			# 2. train

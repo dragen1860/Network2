@@ -3,7 +3,7 @@ import numpy as np
 from torch import optim
 from torch.autograd import Variable
 from MiniImagenet import MiniImagenet
-from naive5 import Naive5
+from amn import AMN
 import scipy.stats
 from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
@@ -149,7 +149,7 @@ def main():
 		global_buff = pickle.load(open('mini%d%d.pkl' % (n_way, k_shot), 'rb'))
 		print('load pkl buff:', len(global_buff))
 
-	net = nn.DataParallel(Naive5(n_way, k_shot, imgsz), device_ids=[0, 1, 2]).cuda()
+	net = nn.DataParallel(AMN(n_way, k_shot, imgsz), device_ids=[0, 1, 2]).cuda()
 	print(net)
 
 	if os.path.exists(mdl_file):
